@@ -13,13 +13,27 @@
 namespace PhpCsFixer\Fixer\PhpTag;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Ceeram <ceeram@cakephp.org>
  */
-final class LinebreakAfterOpeningTagFixer extends AbstractFixer
+final class LinebreakAfterOpeningTagFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Ensure there is no code on the same line as the PHP open tag.',
+            array(new CodeSample("<?php \$a = 1;\n\$b = 3;"))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,7 +45,7 @@ final class LinebreakAfterOpeningTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         // ignore files with short open tag and ignore non-monolithic files
         if (!$tokens[0]->isGivenKind(T_OPEN_TAG) || !$tokens->isMonolithicPhp()) {
@@ -52,14 +66,6 @@ final class LinebreakAfterOpeningTagFixer extends AbstractFixer
         }
 
         $token = $tokens[0];
-        $token->setContent(rtrim($token->getContent())."\n");
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Ensure there is no code on the same line as the PHP open tag.';
+        $token->setContent(rtrim($token->getContent()).$this->whitespacesConfig->getLineEnding());
     }
 }

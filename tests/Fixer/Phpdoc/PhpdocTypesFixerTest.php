@@ -21,7 +21,7 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
  */
 final class PhpdocTypesFixerTest extends AbstractFixerTestCase
 {
-    public function testConvesion()
+    public function testConversion()
     {
         $expected = <<<'EOF'
 <?php
@@ -87,6 +87,30 @@ EOF;
      * @param Mixed $foo
      *
      * @return Void
+     */
+
+EOF;
+        $this->doTest($expected, $input);
+    }
+
+    public function testIterableFix()
+    {
+        $expected = <<<'EOF'
+<?php
+    /**
+     * @param iterable $foo
+     *
+     * @return Itter
+     */
+
+EOF;
+
+        $input = <<<'EOF'
+<?php
+    /**
+     * @param Iterable $foo
+     *
+     * @return Itter
      */
 
 EOF;

@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Operator;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -20,6 +22,17 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class StandardizeNotEqualsFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Replace all `<>` with `!=`.',
+            array(new CodeSample("<?php\n\$a = \$b <> \$c;"))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,20 +44,12 @@ final class StandardizeNotEqualsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $index => $token) {
             if ($token->isGivenKind(T_IS_NOT_EQUAL)) {
                 $tokens[$index]->setContent('!=');
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Replace all <> with !=.';
     }
 }

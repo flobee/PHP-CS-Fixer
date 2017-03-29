@@ -23,6 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideNoEmptyStatementsCases
      */
     public function testNoEmptyStatements($expected, $input = null)
@@ -353,47 +356,15 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
                     namespace A\B\C;;use D;
                 ',
             ),
-            array(
-                '<?php
-                    namespace A\B\C {
-
-                    }
-                ',
-                '<?php
-                    namespace A\B\C {
-
-                    };
-                ',
-            ),
-            array(
-                '<?php
-                    namespace A{
-
-                    }
-                ',
-                '<?php
-                    namespace A{
-
-                    };
-                ',
-            ),
-            array(
-                '<?php
-                    namespace{
-
-                    }
-                ',
-                '<?php
-                    namespace{
-
-                    };
-                ',
-            ),
         );
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provide54Cases
+     * @requires PHP 5.4
      */
     public function testFix54($expected, $input = null)
     {
@@ -402,10 +373,6 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
 
     public function provide54Cases()
     {
-        if (!defined('T_TRAIT')) {
-            $this->markTestSkipped('Test requires traits.');
-        }
-
         return array(
             array(
                 '<?php
@@ -423,7 +390,11 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
     }
 
     /**
-     * @dataProvider provide54Cases
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provide55Cases
+     * @requires PHP 5.5
      */
     public function testFix55($expected, $input = null)
     {
@@ -455,6 +426,9 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider providePHP7Cases
      * @requires PHP 7.0
      */
@@ -507,10 +481,49 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
                 '<?php {{}}',
                 '<?php {{}};',
             ),
+            array(
+                '<?php
+                    namespace A\B\C {
+
+                    }
+                ',
+                '<?php
+                    namespace A\B\C {
+
+                    };
+                ',
+            ),
+            array(
+                '<?php
+                    namespace A{
+
+                    }
+                ',
+                '<?php
+                    namespace A{
+
+                    };
+                ',
+            ),
+            array(
+                '<?php
+                    namespace{
+
+                    }
+                ',
+                '<?php
+                    namespace{
+
+                    };
+                ',
+            ),
         );
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCasesWithShortOpenTag
      */
     public function testCasesWithShortOpenTag($expected, $input = null)
@@ -551,6 +564,9 @@ final class NoEmptyStatementFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixMultipleSemicolonsCases
      */
     public function testFixMultipleSemicolons($expected, $input = null)

@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\PhpTag;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -25,6 +27,33 @@ final class FullOpeningTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'PHP code must use the long `<?php` tags or short-echo `<?=` tags and not other tag variations.',
+            array(
+                new CodeSample(
+'<?
+
+echo "Hello!";
+'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // must run before all Token-based fixers
+        return 98;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return true;
@@ -33,12 +62,12 @@ final class FullOpeningTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokensOrg)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokensOrg)
     {
         $content = $tokensOrg->generateCode();
 
         // replace all <? with <?php to replace all short open tags even without short_open_tag option enabled
-        $newContent = preg_replace('/<\?(\s|$)/', '<?php$1', $content, -1, $count);
+        $newContent = preg_replace('/<\?(?:phP|pHp|pHP|Php|PhP|PHp|PHP)?(\s|$)/', '<?php$1', $content, -1, $count);
 
         if (!$count) {
             return;
@@ -58,7 +87,7 @@ final class FullOpeningTagFixer extends AbstractFixer
             if ($token->isGivenKind(T_OPEN_TAG)) {
                 $tokenContent = $token->getContent();
 
-                if ('<?php' !== substr($content, $tokensOldContentLength, 5)) {
+                if ('<?php' !== strtolower(substr($content, $tokensOldContentLength, 5))) {
                     $tokenContent = '<? ';
                 }
 
@@ -78,8 +107,9 @@ final class FullOpeningTagFixer extends AbstractFixer
                     $tokenContentLength += strlen($part);
 
                     if ($i !== $iLast) {
-                        if ('<?php' === substr($content, $tokensOldContentLength + $tokenContentLength, 5)) {
-                            $tokenContent .= '<?php';
+                        $originalTokenContent = substr($content, $tokensOldContentLength + $tokenContentLength, 5);
+                        if ('<?php' === strtolower($originalTokenContent)) {
+                            $tokenContent .= $originalTokenContent;
                             $tokenContentLength += 5;
                         } else {
                             $tokenContent .= '<?';
@@ -96,22 +126,5 @@ final class FullOpeningTagFixer extends AbstractFixer
         }
 
         $tokensOrg->overrideRange(0, $tokensOrg->count() - 1, $tokens);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'PHP code must use the long <?php ?> tags or the short-echo <?= ?> tags; it must not use the other tag variations.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // must run before all Token-based fixers
-        return 98;
     }
 }

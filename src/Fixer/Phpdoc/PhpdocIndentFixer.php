@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Utils;
 
@@ -25,6 +27,41 @@ final class PhpdocIndentFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Docblocks should have the same indentation as the documented subject.',
+            array(new CodeSample('<?php
+class DocBlocks
+{
+/**
+ * Test constants
+ */
+    const INDENT = 1;
+}
+'))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        /*
+         * Should be run before all other docblock fixers apart from the
+         * phpdoc_to_comment fixer to make sure all fixers apply correct
+         * indentation to new code they add, and the phpdoc_params fixer only
+         * works on correctly indented docblocks. We also need to be running
+         * after the psr2 indentation fixer for obvious reasons.
+         * comments.
+         */
+        return 20;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_DOC_COMMENT);
@@ -33,7 +70,7 @@ final class PhpdocIndentFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $index => $token) {
             if (!$token->isGivenKind(T_DOC_COMMENT)) {
@@ -66,30 +103,6 @@ final class PhpdocIndentFixer extends AbstractFixer
             $prevToken->setContent($this->fixWhitespaceBefore($prevToken->getContent(), $indent));
             $token->setContent($this->fixDocBlock($token->getContent(), $indent));
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Docblocks should have the same indentation as the documented subject.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        /*
-         * Should be run before all other docblock fixers apart from the
-         * phpdoc_to_comment fixer to make sure all fixers apply correct
-         * indentation to new code they add, and the phpdoc_params fixer only
-         * works on correctly indented docblocks. We also need to be running
-         * after the psr2 indentation fixer for obvious reasons.
-         * comments.
-         */
-        return 20;
     }
 
     /**

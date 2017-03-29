@@ -12,6 +12,7 @@
 
 namespace PhpCsFixer\Tests\Report;
 
+use GeckoPackages\PHPUnit\Constraints\XML\XMLMatchesXSDConstraint;
 use PhpCsFixer\Report\ReportSummary;
 use PhpCsFixer\Report\XmlReporter;
 
@@ -25,22 +26,52 @@ final class XmlReporterTest extends \PHPUnit_Framework_TestCase
     /** @var XmlReporter */
     private $reporter;
 
+    /**
+     * @var string
+     */
+    private $xsd;
+
     protected function setUp()
     {
         $this->reporter = new XmlReporter();
+        $this->xsd = file_get_contents(__DIR__.'/../../doc/xml.xsd');
     }
 
     /**
-     * @covers PhpCsFixer\Report\XmlReporter::getFormat
+     * @covers \PhpCsFixer\Report\XmlReporter::getFormat
      */
     public function testGetFormat()
     {
         $this->assertSame('xml', $this->reporter->getFormat());
     }
 
+    public function testGenerateNoErrors()
+    {
+        $expectedReport = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<report>
+  <files />
+</report>
+XML;
+
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(),
+                0,
+                0,
+                false,
+                false,
+                false
+            )
+        );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
+    }
+
     public function testGenerateSimple()
     {
-        $expectedXml = <<<'XML'
+        $expectedReport = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <report>
   <files>
@@ -49,24 +80,28 @@ final class XmlReporterTest extends \PHPUnit_Framework_TestCase
 </report>
 XML;
 
-        $this->assertXmlStringEqualsXmlString(
-            $expectedXml,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                0,
+                0,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithDiff()
     {
-        $expectedXml = <<<'XML'
+        $expectedReport = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <report>
   <files>
@@ -77,25 +112,29 @@ XML;
 </report>
 XML;
 
-        $this->assertXmlStringEqualsXmlString(
-            $expectedXml,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                                'diff' => 'this text is a diff ;)',
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                        'diff' => 'this text is a diff ;)',
+                    ),
+                ),
+                0,
+                0,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithAppliedFixers()
     {
-        $expectedXml = <<<'XML'
+        $expectedReport = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <report>
   <files>
@@ -108,25 +147,28 @@ XML;
 </report>
 XML;
 
-        $this->assertXmlStringEqualsXmlString(
-            $expectedXml,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setAddAppliedFixers(true)
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                0,
+                0,
+                true,
+                false,
+                false
             )
         );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithTimeAndMemory()
     {
-        $expectedXml = <<<'XML'
+        $expectedReport = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <report>
   <files>
@@ -139,26 +181,28 @@ XML;
 </report>
 XML;
 
-        $this->assertXmlStringEqualsXmlString(
-            $expectedXml,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
-                    ->setMemory(2.5 * 1024 * 1024)
-                    ->setTime(1234)
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                1234,
+                2.5 * 1024 * 1024,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
     }
 
     public function testGenerateComplex()
     {
-        $expectedXml = <<<'XML'
+        $expectedReport = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <report>
   <files>
@@ -170,7 +214,8 @@ XML;
     </file>
     <file id="2" name="anotherFile.php">
       <applied_fixers>
-        <applied_fixer name="another_fixer_name_here"/>
+        <applied_fixer name="another_fixer_name_here_1"/>
+        <applied_fixer name="another_fixer_name_here_2"/>
       </applied_fixers>
       <diff>another diff here ;)</diff>
     </file>
@@ -182,26 +227,27 @@ XML;
 </report>
 XML;
 
-        $this->assertXmlStringEqualsXmlString(
-            $expectedXml,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setAddAppliedFixers(true)
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                                'diff' => 'this text is a diff ;)',
-                            ),
-                            'anotherFile.php' => array(
-                                'appliedFixers' => array('another_fixer_name_here'),
-                                'diff' => 'another diff here ;)',
-                            ),
-                        )
-                    )
-                    ->setMemory(2.5 * 1024 * 1024)
-                    ->setTime(1234)
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                        'diff' => 'this text is a diff ;)',
+                    ),
+                    'anotherFile.php' => array(
+                        'appliedFixers' => array('another_fixer_name_here_1', 'another_fixer_name_here_2'),
+                        'diff' => 'another diff here ;)',
+                    ),
+                ),
+                1234,
+                2.5 * 1024 * 1024,
+                true,
+                false,
+                false
             )
         );
+
+        $this->assertThat($actualReport, new XMLMatchesXSDConstraint($this->xsd));
+        $this->assertXmlStringEqualsXmlString($expectedReport, $actualReport);
     }
 }

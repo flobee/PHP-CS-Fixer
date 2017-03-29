@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class SimplifiedNullReturnFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideExamples
      */
     public function testFix($expected, $input = null)
@@ -47,6 +50,7 @@ final class SimplifiedNullReturnFixerTest extends AbstractFixerTestCase
             array('<?php return;', '<?php return ( (( null)));'),
             array('<?php return /* hello */;', '<?php return /* hello */ null  ;'),
             array('<?php return;', '<?php return NULL;'),
+            array('<?php return;', "<?php return\n(\nnull\n)\n;"),
         );
     }
 }

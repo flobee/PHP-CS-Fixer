@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\StringNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -20,6 +22,17 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class SingleQuoteFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Convert double quotes to single quotes for simple strings.',
+            array(new CodeSample('<?php $a = "sample";'))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,7 +44,7 @@ final class SingleQuoteFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $token) {
             if (!$token->isGivenKind(T_CONSTANT_ENCAPSED_STRING)) {
@@ -50,13 +63,5 @@ final class SingleQuoteFixer extends AbstractFixer
                 $token->setContent('\''.$content.'\'');
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Convert double quotes to single quotes for simple strings.';
     }
 }

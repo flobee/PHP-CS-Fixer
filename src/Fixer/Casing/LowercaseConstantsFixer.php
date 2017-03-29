@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\Casing;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -25,6 +28,17 @@ final class LowercaseConstantsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'The PHP constants `true`, `false`, and `null` MUST be in lower case.',
+            array(new CodeSample("<?php\n\$a = FALSE;\n\$b = True;\n\$c = nuLL;"))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_STRING);
@@ -33,7 +47,7 @@ final class LowercaseConstantsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $index => $token) {
             if (!$token->isNativeConstant()) {
@@ -50,13 +64,11 @@ final class LowercaseConstantsFixer extends AbstractFixer
     }
 
     /**
-     * {@inheritdoc}
+     * @param Tokens $tokens
+     * @param int    $index
+     *
+     * @return bool
      */
-    public function getDescription()
-    {
-        return 'The PHP constants true, false, and null MUST be in lower case.';
-    }
-
     private function isNeighbourAccepted(Tokens $tokens, $index)
     {
         static $forbiddenTokens = null;
@@ -74,8 +86,8 @@ final class LowercaseConstantsFixer extends AbstractFixer
                 T_NS_SEPARATOR,
                 T_PAAMAYIM_NEKUDOTAYIM,
                 T_USE,
-                CT_USE_TRAIT,
-                CT_USE_LAMBDA,
+                CT::T_USE_TRAIT,
+                CT::T_USE_LAMBDA,
             );
 
             if (defined('T_TRAIT')) {

@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\NamespaceNotation;
 
 use PhpCsFixer\AbstractLinesBeforeNamespaceFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -31,7 +33,22 @@ final class NoBlankLinesBeforeNamespaceFixer extends AbstractLinesBeforeNamespac
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'There should be no blank lines before a namespace declaration.',
+            array(
+                new CodeSample(
+                    "<?php\n\n\n\nnamespace Example;"
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         for ($index = 0, $limit = $tokens->count(); $index < $limit; ++$index) {
             $token = $tokens[$index];
@@ -42,13 +59,5 @@ final class NoBlankLinesBeforeNamespaceFixer extends AbstractLinesBeforeNamespac
 
             $this->fixLinesBeforeNamespace($tokens, $index, 1);
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'There should be no blank lines before a namespace declaration.';
     }
 }

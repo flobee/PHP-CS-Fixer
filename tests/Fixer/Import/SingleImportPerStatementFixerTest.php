@@ -13,15 +13,20 @@
 namespace PhpCsFixer\Tests\Fixer\Import;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
+ * @author SpacePossum
  *
  * @internal
  */
 final class SingleImportPerStatementFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -150,13 +155,63 @@ EOF
             ),
             array(
                 '<?php use FooA;
-use FooB;?>',
+use FooB?>',
                 '<?php use FooA, FooB?>',
+            ),
+            array(
+                '<?php
+use B;
+use C;
+    use E;
+    use F;
+        use G;
+        use H;
+',
+                '<?php
+use B,C;
+    use E,F;
+        use G,H;
+',
+            ),
+            array(
+                '<?php
+use B;
+/*
+*/use C;
+',
+                '<?php
+use B,
+/*
+*/C;
+',
+            ),
+            array(
+                '<?php
+use A;
+use B;
+//,{} use ; :
+#,{} use ; :
+/*,{} use ; :*/
+use C  ; ',
+                '<?php
+use A,B,
+//,{} use ; :
+#,{} use ; :
+/*,{} use ; :*/
+C  ; ',
+            ),
+            array(
+                '<?php use Z ;
+use X ?><?php new X(); // run before white space around semicolon',
+                '<?php use Z , X ?><?php new X(); // run before white space around semicolon',
             ),
         );
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provide70Cases
      * @requires PHP 7.0
      */
@@ -176,15 +231,46 @@ use some\a\ClassC as C;
 use function some\b\fn_a;
 use function some\b\fn_b;
 use function some\b\fn_c;
-use const some\c\ConstA;
-use const some\c\ConstB;
-use const some\c\ConstC;
+use const some\c\ConstA/**/as/**/E; /* group comment */
+use const some\c\ConstB as D;
+use const some\c\// use.,{}
+ConstC;
+use A\{B};
+use D\E;
+use D\F;
                 ',
                 '<?php
 use some\a\{ClassA, ClassB, ClassC as C};
 use    function some\b\{fn_a, fn_b, fn_c};
-use const some\c\{ConstA, ConstB, ConstC};
+use const/* group comment */some\c\{ConstA/**/as/**/ E   ,    ConstB   AS    D, '.'
+// use.,{}
+ConstC};
+use A\{B};
+use D\{E,F};
                 ',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\n    use FooA;\r\n    use FooB;",
+                "<?php\r\n    use FooA, FooB;",
             ),
         );
     }

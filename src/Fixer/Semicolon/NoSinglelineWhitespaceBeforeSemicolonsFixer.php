@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Semicolon;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -20,6 +22,17 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class NoSinglelineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Single-line whitespace before closing semicolon are prohibited.',
+            array(new CodeSample('<?php $this->foo() ;'))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,7 +44,7 @@ final class NoSinglelineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $index => $token) {
             if (!$token->equals(';') || !$tokens[$index - 1]->isWhitespace(" \t")) {
@@ -47,13 +60,5 @@ final class NoSinglelineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
                 $tokens[$index - 1]->clear();
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Single-line whitespace before closing semicolon are prohibited.';
     }
 }

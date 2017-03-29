@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class TrimArraySpacesFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixCases
      */
     public function testFix($expected, $input = null)
@@ -243,14 +246,6 @@ final class TrimArraySpacesFixerTest extends AbstractFixerTestCase
             ),
 
             array(
-                '<?php $foo = array(array("foo"), array("bar"));',
-            ),
-
-            array(
-                '<?php $foo = [["foo"], ["bar"]];',
-            ),
-
-            array(
                 '<?php $foo = array(/* empty array */);',
                 '<?php $foo = array( /* empty array */ );',
             ),
@@ -445,6 +440,9 @@ final class TrimArraySpacesFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideExamples55
      * @requires PHP 5.5
      */

@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class DirConstantFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideExamples
      */
     public function testFix($expected, $input = null)
@@ -81,6 +84,24 @@ FIXED;
             array(
                 '<?php $x = /**//**/ /** x*//**//** */__DIR__/***//*xx*/;',
                 '<?php $x = /**/dirname/**/ /** x*/(/**//** */__FILE__/***/)/*xx*/;',
+            ),
+            array(
+                '<?php
+                interface Test
+                {
+                    public function dirname($a);
+                }',
+            ),
+            array(
+                '<?php
+                interface Test
+                {
+                    public function &dirname($a);
+                }',
+            ),
+            array(
+                "<?php echo __DIR__\n?>",
+                "<?php echo dirname\n(\n__FILE__\n)\n?>",
             ),
         );
     }

@@ -17,6 +17,7 @@ use PhpCsFixer\Report\ReportSummary;
 
 /**
  * @author Boris Gorbylev <ekho@ekho.name>
+ * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  *
  * @internal
  */
@@ -31,103 +32,154 @@ final class JsonReporterTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @covers PhpCsFixer\Report\JsonReporter::getFormat
+     * @covers \PhpCsFixer\Report\JsonReporter::getFormat
      */
     public function testGetFormat()
     {
         $this->assertSame('json', $this->reporter->getFormat());
     }
 
-    public function testGenerateSimple()
+    public function testGenerateNoErrors()
     {
-        $expectedJson = <<<'JSON'
+        $expectedReport = <<<'JSON'
 {
-    "files":[
-        {
-            "name": "someFile.php"
-        }
-    ]
+    "files": [
+    ],
+    "time": {
+        "total": 0
+    },
+    "memory": 0
 }
 JSON;
 
-        $this->assertJsonStringEqualsJsonString(
-            $expectedJson,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(),
+                0,
+                0,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
+    }
+
+    public function testGenerateSimple()
+    {
+        $expectedReport = <<<'JSON'
+{
+    "files": [
+        {
+            "name": "someFile.php"
+        }
+    ],
+    "time": {
+        "total": 5
+    },
+    "memory": 2
+}
+JSON;
+
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                5 * 1000,
+                2 * 1024 * 1024,
+                false,
+                false,
+                false
+            )
+        );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithDiff()
     {
-        $expectedJson = <<<'JSON'
+        $expectedReport = <<<'JSON'
 {
-    "files":[
+    "files": [
         {
             "name": "someFile.php",
             "diff": "this text is a diff ;)"
         }
-    ]
+    ],
+    "time": {
+        "total": 5
+    },
+    "memory": 2
 }
 JSON;
 
-        $this->assertJsonStringEqualsJsonString(
-            $expectedJson,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                                'diff' => 'this text is a diff ;)',
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                        'diff' => 'this text is a diff ;)',
+                    ),
+                ),
+                5 * 1000,
+                2 * 1024 * 1024,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithAppliedFixers()
     {
-        $expectedJson = <<<'JSON'
+        $expectedReport = <<<'JSON'
 {
-    "files":[
+    "files": [
         {
             "name": "someFile.php",
             "appliedFixers":["some_fixer_name_here"]
         }
-    ]
+    ],
+    "time": {
+        "total": 5
+    },
+    "memory": 2
 }
 JSON;
 
-        $this->assertJsonStringEqualsJsonString(
-            $expectedJson,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setAddAppliedFixers(true)
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                5 * 1000,
+                2 * 1024 * 1024,
+                true,
+                false,
+                false
             )
         );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
     }
 
     public function testGenerateWithTimeAndMemory()
     {
-        $expectedJson = <<<'JSON'
+        $expectedReport = <<<'JSON'
 {
-    "files":[
+    "files": [
         {
             "name": "someFile.php"
         }
@@ -139,28 +191,30 @@ JSON;
 }
 JSON;
 
-        $this->assertJsonStringEqualsJsonString(
-            $expectedJson,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                            ),
-                        )
-                    )
-                    ->setMemory(2.5 * 1024 * 1024)
-                    ->setTime(1234)
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                    ),
+                ),
+                1234,
+                2.5 * 1024 * 1024,
+                false,
+                false,
+                false
             )
         );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
     }
 
     public function testGenerateComplex()
     {
-        $expectedJson = <<<'JSON'
+        $expectedReport = <<<'JSON'
 {
-    "files":[
+    "files": [
         {
             "name": "someFile.php",
             "appliedFixers":["some_fixer_name_here"],
@@ -179,25 +233,53 @@ JSON;
 }
 JSON;
 
-        $this->assertJsonStringEqualsJsonString(
-            $expectedJson,
-            $this->reporter->generate(
-                ReportSummary::create()
-                    ->setAddAppliedFixers(true)
-                    ->setChanged(
-                        array(
-                            'someFile.php' => array(
-                                'appliedFixers' => array('some_fixer_name_here'),
-                                'diff' => 'this text is a diff ;)',
-                            ),
-                            'anotherFile.php' => array(
-                                'appliedFixers' => array('another_fixer_name_here'),
-                                'diff' => 'another diff here ;)',
-                            ),
-                        )
-                    )
-                    ->setMemory(2.5 * 1024 * 1024)
-                    ->setTime(1234)
+        $actualReport = $this->reporter->generate(
+            new ReportSummary(
+                array(
+                    'someFile.php' => array(
+                        'appliedFixers' => array('some_fixer_name_here'),
+                        'diff' => 'this text is a diff ;)',
+                    ),
+                    'anotherFile.php' => array(
+                        'appliedFixers' => array('another_fixer_name_here'),
+                        'diff' => 'another diff here ;)',
+                    ),
+                ),
+                1234,
+                2.5 * 1024 * 1024,
+                true,
+                true,
+                true
+            )
+        );
+
+        $this->assertJsonSchema($actualReport);
+        $this->assertJsonStringEqualsJsonString($expectedReport, $actualReport);
+    }
+
+    /**
+     * @param string $json
+     */
+    private function assertJsonSchema($json)
+    {
+        $jsonPath = __DIR__.'/../../doc/schema.json';
+
+        $data = json_decode($json);
+
+        $validator = new \JsonSchema\Validator();
+        $validator->validate(
+            $data,
+            (object) array('$ref' => 'file://'.realpath($jsonPath))
+        );
+
+        $this->assertTrue(
+            $validator->isValid(),
+            implode(
+                "\n",
+                array_map(
+                    function (array $item) { return sprintf('Property `%s`: %s.', $item['property'], $item['message']); },
+                    $validator->getErrors()
+                )
             )
         );
     }

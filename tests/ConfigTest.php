@@ -13,7 +13,12 @@
 namespace PhpCsFixer\Tests;
 
 use PhpCsFixer\Config;
+use PhpCsFixer\Console\Command\FixCommand;
+use PhpCsFixer\Console\ConfigurationResolver;
 use PhpCsFixer\Finder;
+use PhpCsFixer\Fixer\FixerInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Finder\Finder as SymfonyFinder;
 
 /**
@@ -21,14 +26,93 @@ use Symfony\Component\Finder\Finder as SymfonyFinder;
  */
 final class ConfigTest extends \PHPUnit_Framework_TestCase
 {
+    public function testConfigRulesUsingSeparateMethod()
+    {
+        $config = new Config();
+        $configResolver = new ConfigurationResolver(
+            $config, array(
+                'rules' => 'cast_spaces,braces',
+            ),
+            getcwd()
+        );
+
+        $this->assertArraySubset(
+            array(
+                'cast_spaces' => true,
+                'braces' => true,
+            ),
+            $configResolver->getRules()
+        );
+    }
+
+    public function testConfigRulesUsingJsonMethod()
+    {
+        $config = new Config();
+        $configResolver = new ConfigurationResolver(
+            $config, array(
+                'rules' => '{"array_syntax": {"syntax": "short"}, "cast_spaces": true}',
+            ),
+            getcwd()
+        );
+
+        $this->assertArraySubset(
+            array(
+                'array_syntax' => array(
+                    'syntax' => 'short',
+                ),
+                'cast_spaces' => true,
+            ),
+            $configResolver->getRules()
+        );
+    }
+
+    public function testConfigRulesUsingInvalidJson()
+    {
+        $this->setExpectedException('PhpCsFixer\ConfigurationException\InvalidConfigurationException');
+
+        $config = new Config();
+        $configResolver = new ConfigurationResolver(
+            $config, array(
+                'rules' => '{blah',
+            ),
+            getcwd()
+        );
+        $configResolver->getRules();
+    }
+
+    public function testCustomConfig()
+    {
+        $customConfigFile = __DIR__.'/Fixtures/.php_cs_custom.php';
+        $command = new FixCommand();
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(
+            array(
+                'path' => array($customConfigFile),
+                '--dry-run' => true,
+                '--config' => $customConfigFile,
+            ),
+            array(
+                'decorated' => false,
+                'verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE,
+            )
+        );
+        $this->assertStringMatchesFormat(
+            sprintf('%%ALoaded config custom_config_test from "%s".%%A', $customConfigFile),
+            $commandTester->getDisplay(true)
+        );
+    }
+
     public function testThatFinderWorksWithDirSetOnConfig()
     {
         $config = new Config();
 
-        $iterator = $config->getFinder()->in(__DIR__.'/Fixtures/FinderDirectory')->getIterator();
-        $this->assertSame(1, count($iterator));
-        $iterator->rewind();
-        $this->assertSame('somefile.php', $iterator->current()->getFilename());
+        $items = iterator_to_array(
+            $config->getFinder()->in(__DIR__.'/Fixtures/FinderDirectory'),
+            false
+        );
+
+        $this->assertCount(1, $items);
+        $this->assertSame('somefile.php', $items[0]->getFilename());
     }
 
     public function testThatCustomFinderWorks()
@@ -36,12 +120,15 @@ final class ConfigTest extends \PHPUnit_Framework_TestCase
         $finder = new Finder();
         $finder->in(__DIR__.'/Fixtures/FinderDirectory');
 
-        $config = Config::create()->finder($finder);
+        $config = Config::create()->setFinder($finder);
 
-        $iterator = $config->getFinder()->getIterator();
-        $this->assertSame(1, count($iterator));
-        $iterator->rewind();
-        $this->assertSame('somefile.php', $iterator->current()->getFilename());
+        $items = iterator_to_array(
+            $config->getFinder(),
+            false
+        );
+
+        $this->assertCount(1, $items);
+        $this->assertSame('somefile.php', $items[0]->getFilename());
     }
 
     public function testThatCustomSymfonyFinderWorks()
@@ -49,12 +136,15 @@ final class ConfigTest extends \PHPUnit_Framework_TestCase
         $finder = new SymfonyFinder();
         $finder->in(__DIR__.'/Fixtures/FinderDirectory');
 
-        $config = Config::create()->finder($finder);
+        $config = Config::create()->setFinder($finder);
 
-        $iterator = $config->getFinder()->getIterator();
-        $this->assertSame(1, count($iterator));
-        $iterator->rewind();
-        $this->assertSame('somefile.php', $iterator->current()->getFilename());
+        $items = iterator_to_array(
+            $config->getFinder(),
+            false
+        );
+
+        $this->assertCount(1, $items);
+        $this->assertSame('somefile.php', $items[0]->getFilename());
     }
 
     public function testThatCacheFileHasDefaultValue()
@@ -81,23 +171,27 @@ final class ConfigTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($config, $config->setCacheFile('some-directory/some.file'));
     }
 
-    /**
-     * @expectedException              \InvalidArgumentException
-     * @expectedExceptionMessageRegExp /^Argument must be an array or a Traversable, got "\w+"\.$/
-     */
-    public function testAddCustomFixersWithInvalidArgument()
+    public function testRegisterCustomFixersWithInvalidArgument()
     {
+        $this->setExpectedExceptionRegExp(
+            'InvalidArgumentException',
+            '/^Argument must be an array or a Traversable, got "\w+"\.$/'
+        );
+
         $config = new Config();
-        $config->addCustomFixers('foo');
+        $config->registerCustomFixers('foo');
     }
 
     /**
-     * @dataProvider provideAddCustomFixersCases
+     * @param FixerInterface[] $expected
+     * @param iterable         $suite
+     *
+     * @dataProvider provideRegisterCustomFixersCases
      */
-    public function testAddCustomFixers($expected, $suite)
+    public function testRegisterCustomFixers(array $expected, $suite)
     {
         $config = new Config();
-        $config->addCustomFixers($suite);
+        $config->registerCustomFixers($suite);
 
         $this->assertSame($expected, $config->getCustomFixers());
     }
@@ -105,7 +199,7 @@ final class ConfigTest extends \PHPUnit_Framework_TestCase
     /**
      * @return array
      */
-    public function provideAddCustomFixersCases()
+    public function provideRegisterCustomFixersCases()
     {
         $fixers = array(
             new \PhpCsFixer\Fixer\ArrayNotation\NoWhitespaceBeforeCommaInArrayFixer(),

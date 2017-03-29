@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\ClassNotation;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Javier Spagnoletti <phansys@gmail.com>
@@ -22,6 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class SingleClassElementPerStatementFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -585,6 +589,31 @@ EOT
     }
 
     /**
+     * @param string $expected
+     *
+     * @group legacy
+     * @dataProvider provideConfigurationCases
+     * @expectedDeprecation Passing "elements" at the root of the configuration is deprecated and will not be supported in 3.0, use "elements" => array(...) option instead.
+     */
+    public function testLegacyFixWithConfiguration(array $configuration, $expected)
+    {
+        static $input = <<<'EOT'
+<?php
+
+class Foo
+{
+    const SOME_CONST = 'a', OTHER_CONST = 'b';
+    protected static $foo = 1, $bar = 2;
+}
+EOT;
+
+        $this->fixer->configure($configuration);
+        $this->doTest($expected, $input);
+    }
+
+    /**
+     * @param string $expected
+     *
      * @dataProvider provideConfigurationCases
      */
     public function testFixWithConfiguration(array $configuration, $expected)
@@ -599,8 +628,7 @@ class Foo
 }
 EOT;
 
-        $this->getFixer()->configure($configuration);
-
+        $this->fixer->configure(array('elements' => $configuration));
         $this->doTest($expected, $input);
     }
 
@@ -650,16 +678,20 @@ EOT
         );
     }
 
-    /**
-     * @expectedException \PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException
-     * @expectedExceptionMessageRegExp /^\[single_class_element_per_statement\] Unknown configuration option "foo"\.$/
-     */
     public function testWrongConfig()
     {
-        $this->getFixer()->configure(array('foo'));
+        $this->setExpectedExceptionRegExp(
+            'PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException',
+            '/^\[single_class_element_per_statement\] Invalid configuration: The option "elements" .*\.$/'
+        );
+
+        $this->fixer->configure(array('elements' => array('foo')));
     }
 
     /**
+     * @param string $expected
+     * @param string $input
+     *
      * @dataProvider providePHP71Cases
      * @requires PHP 7.1
      */
@@ -689,6 +721,29 @@ EOT
                         public const PUBLIC_CONST_TWO = 0, TEST_71 = 0;
                     }
                 ',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\n\tclass Foo {\r\n\t\tconst AAA=0;\r\n\t\tconst BBB=1;\r\n\t}",
+                "<?php\r\n\tclass Foo {\r\n\t\tconst AAA=0, BBB=1;\r\n\t}",
             ),
         );
     }

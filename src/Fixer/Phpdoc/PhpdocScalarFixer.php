@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractPhpdocTypesFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 
 /**
  * @author Graham Campbell <graham@alt-three.com>
@@ -35,9 +37,23 @@ final class PhpdocScalarFixer extends AbstractPhpdocTypesFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    public function getDefinition()
     {
-        return 'Scalar types should always be written in the same form. "int", not "integer"; "bool", not "boolean"; "float", not "real" or "double".';
+        return new FixerDefinition(
+            'Scalar types should always be written in the same form. `int` not `integer`, `bool` not `boolean`, `float` not `real` or `double`.',
+            array(new CodeSample('<?php
+/**
+ * @param integer $a
+ * @param boolean $b
+ * @param real $c
+ *
+ * @return double
+ */
+function sample($a, $b, $c)
+{
+    return sample2($a, $b, $c);
+}'))
+        );
     }
 
     public function getPriority()

@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\PhpTag;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Ceeram <ceeram@cakephp.org>
@@ -23,6 +24,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class BlankLineAfterOpeningTagFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -31,6 +35,9 @@ final class BlankLineAfterOpeningTagFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @requires PHP 5.4
      * @dataProvider provideCases54
      */
@@ -68,12 +75,6 @@ $a = function(){
             array(
                 '<?php $foo = true; ?>
 ',
-            ),
-            array(
-                '<?php
-
-$foo = true;
-?>',
             ),
             array(
                 '<?php
@@ -120,6 +121,33 @@ Html here
                 '<?= $bar;
 $foo = $bar;
 ?>',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\n\r\n\$foo = true;\r\n",
+                "<?php \$foo = true;\r\n",
+            ),
+            array(
+                "<?php\r\n\r\n\$foo = true;\r\n",
+                "<?php\r\n\$foo = true;\r\n",
             ),
         );
     }

@@ -13,22 +13,20 @@
 namespace PhpCsFixer\Fixer\PhpUnit;
 
 use PhpCsFixer\AbstractFixer;
-use PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverRootless;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerConfiguration\FixerOptionValidatorGenerator;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class PhpUnitStrictFixer extends AbstractFixer
+final class PhpUnitStrictFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
-    private $configuration = array(
-        'assertAttributeEquals',
-        'assertAttributeNotEquals',
-        'assertEquals',
-        'assertNotEquals',
-    );
-
-    private $assertionMap = array(
+    private static $assertionMap = array(
         'assertAttributeEquals' => 'assertAttributeSame',
         'assertAttributeNotEquals' => 'assertAttributeNotSame',
         'assertEquals' => 'assertSame',
@@ -38,19 +36,29 @@ final class PhpUnitStrictFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function configure(array $usingMethods = null)
+    public function getDefinition()
     {
-        if (null === $usingMethods) {
-            return;
-        }
-
-        foreach ($usingMethods as $method) {
-            if (!array_key_exists($method, $this->assertionMap)) {
-                throw new InvalidFixerConfigurationException($this->getName(), sprintf('Configured method "%s" cannot be fixed by this fixer.', $method));
-            }
-        }
-
-        $this->configuration = $usingMethods;
+        return new FixerDefinition(
+            'PHPUnit methods like `assertSame` should be used instead of `assertEquals`.',
+            array(
+                new CodeSample(
+'<?php
+final class MyTest extends \PHPUnit_Framework_TestCase
+{
+    public function testSomeTest()
+    {
+        $this->assertAttributeEquals(a(), b());
+        $this->assertAttributeNotEquals(a(), b());
+        $this->assertEquals(a(), b());
+        $this->assertNotEquals(a(), b());
+    }
+}
+'
+                ),
+            ),
+            null,
+            'Risky when any of the functions are overridden.'
+        );
     }
 
     /**
@@ -72,10 +80,10 @@ final class PhpUnitStrictFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        foreach ($this->configuration as $methodBefore) {
-            $methodAfter = $this->assertionMap[$methodBefore];
+        foreach ($this->configuration['assertions'] as $methodBefore) {
+            $methodAfter = self::$assertionMap[$methodBefore];
 
             for ($index = 0, $limit = $tokens->count(); $index < $limit; ++$index) {
                 $sequence = $tokens->findSequence(
@@ -103,8 +111,25 @@ final class PhpUnitStrictFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'PHPUnit methods like "assertSame" should be used instead of "assertEquals".';
+        $generator = new FixerOptionValidatorGenerator();
+
+        $assertions = new FixerOptionBuilder('assertions', 'List of assertion methods to fix.');
+        $assertions = $assertions
+            ->setAllowedTypes(array('array'))
+            ->setAllowedValues(array(
+                $generator->allowedValueIsSubsetOf(array_keys(self::$assertionMap)),
+            ))
+            ->setDefault(array(
+                'assertAttributeEquals',
+                'assertAttributeNotEquals',
+                'assertEquals',
+                'assertNotEquals',
+            ))
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolverRootless('assertions', array($assertions));
     }
 }

@@ -12,14 +12,15 @@
 
 namespace PhpCsFixer\Tests\Runner;
 
-use PhpCsFixer\Config;
+use PhpCsFixer\Cache\Directory;
+use PhpCsFixer\Cache\NullCacheManager;
 use PhpCsFixer\Differ\NullDiffer;
 use PhpCsFixer\Error\Error;
 use PhpCsFixer\Error\ErrorsManager;
 use PhpCsFixer\Fixer;
 use PhpCsFixer\Linter\Linter;
-use PhpCsFixer\Linter\NullLinter;
 use PhpCsFixer\Runner\Runner;
+use Prophecy\Argument;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -28,70 +29,96 @@ use Symfony\Component\Finder\Finder;
 final class RunnerTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @covers PhpCsFixer\Runner\Runner::fix
-     * @covers PhpCsFixer\Runner\Runner::fixFile
+     * @covers \PhpCsFixer\Runner\Runner::fix
+     * @covers \PhpCsFixer\Runner\Runner::fixFile
      */
     public function testThatFixSuccessfully()
     {
-        $config = Config::create()
-            ->finder(Finder::create()->in(
-                __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'Fixtures'.DIRECTORY_SEPARATOR.'FixerTest'.DIRECTORY_SEPARATOR.'fix'
-            ))
-            ->fixers(array(
-                new Fixer\ClassNotation\VisibilityRequiredFixer(),
-                new Fixer\Import\NoUnusedImportsFixer(), // will be ignored cause of test keyword in namespace
-            ))
-            ->setUsingCache(false)
-        ;
+        $linterProphecy = $this->prophesize('PhpCsFixer\Linter\LinterInterface');
+        $linterProphecy
+            ->isAsync()
+            ->willReturn(false);
+        $linterProphecy
+            ->lintFile(Argument::type('string'))
+            ->willReturn($this->prophesize('PhpCsFixer\Linter\LintingResultInterface')->reveal());
+        $linterProphecy
+            ->lintSource(Argument::type('string'))
+            ->willReturn($this->prophesize('PhpCsFixer\Linter\LintingResultInterface')->reveal());
 
+        $fixers = array(
+            new Fixer\ClassNotation\VisibilityRequiredFixer(),
+            new Fixer\Import\NoUnusedImportsFixer(), // will be ignored cause of test keyword in namespace
+        );
+
+        $expectedChangedInfo = array(
+            'appliedFixers' => array('visibility_required'),
+            'diff' => '',
+        );
+
+        $path = __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'Fixtures'.DIRECTORY_SEPARATOR.'FixerTest'.DIRECTORY_SEPARATOR.'fix';
         $runner = new Runner(
-            $config,
+            Finder::create()->in($path),
+            $fixers,
             new NullDiffer(),
             null,
             new ErrorsManager(),
-            new NullLinter(),
+            $linterProphecy->reveal(),
+            true,
+            new NullCacheManager(),
+            new Directory($path),
+            false
+        );
+
+        $changed = $runner->fix();
+
+        $this->assertCount(2, $changed);
+        $this->assertArraySubset($expectedChangedInfo, array_pop($changed));
+        $this->assertArraySubset($expectedChangedInfo, array_pop($changed));
+
+        $path = __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'Fixtures'.DIRECTORY_SEPARATOR.'FixerTest'.DIRECTORY_SEPARATOR.'fix';
+        $runner = new Runner(
+            Finder::create()->in($path),
+            $fixers,
+            new NullDiffer(),
+            null,
+            new ErrorsManager(),
+            $linterProphecy->reveal(),
+            true,
+            new NullCacheManager(),
+            new Directory($path),
             true
         );
 
         $changed = $runner->fix();
-        $pathToInvalidFile = 'somefile.php';
 
         $this->assertCount(1, $changed);
-        $this->assertCount(2, $changed[$pathToInvalidFile]);
-        $this->assertSame(array('appliedFixers', 'diff'), array_keys($changed[$pathToInvalidFile]));
-        $this->assertSame('visibility_required', $changed[$pathToInvalidFile]['appliedFixers'][0]);
+        $this->assertArraySubset($expectedChangedInfo, array_pop($changed));
     }
 
     /**
-     * @covers PhpCsFixer\Runner\Runner::fix
-     * @covers PhpCsFixer\Runner\Runner::fixFile
+     * @covers \PhpCsFixer\Runner\Runner::fix
+     * @covers \PhpCsFixer\Runner\Runner::fixFile
      */
     public function testThatFixInvalidFileReportsToErrorManager()
     {
-        $config = Config::create()
-            ->finder(Finder::create()->in(
-                __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'Fixtures'.DIRECTORY_SEPARATOR.'FixerTest'.DIRECTORY_SEPARATOR.'invalid'
-            ))
-            ->fixers(array(
-                new Fixer\ClassNotation\VisibilityRequiredFixer(),
-                new Fixer\Import\NoUnusedImportsFixer(), // will be ignored cause of test keyword in namespace
-            ))
-            ->setUsingCache(false)
-        ;
-
         $errorsManager = new ErrorsManager();
 
+        $path = __DIR__.DIRECTORY_SEPARATOR.'..'.DIRECTORY_SEPARATOR.'Fixtures'.DIRECTORY_SEPARATOR.'FixerTest'.DIRECTORY_SEPARATOR.'invalid';
         $runner = new Runner(
-            $config,
+            Finder::create()->in($path),
+            array(
+                new Fixer\ClassNotation\VisibilityRequiredFixer(),
+                new Fixer\Import\NoUnusedImportsFixer(), // will be ignored cause of test keyword in namespace
+            ),
             new NullDiffer(),
             null,
             $errorsManager,
             new Linter(),
-            true
+            true,
+            new NullCacheManager()
         );
-
         $changed = $runner->fix();
-        $pathToInvalidFile = 'somefile.php';
+        $pathToInvalidFile = $path.DIRECTORY_SEPARATOR.'somefile.php';
 
         $this->assertCount(0, $changed);
 
@@ -105,39 +132,5 @@ final class RunnerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertSame(Error::TYPE_INVALID, $error->getType());
         $this->assertSame($pathToInvalidFile, $error->getFilePath());
-    }
-
-    public function testCanFixWithConfigInterfaceImplementation()
-    {
-        $config = $this->getMockBuilder('PhpCsFixer\ConfigInterface')->getMock();
-
-        $config
-            ->expects($this->any())
-            ->method('getFixers')
-            ->willReturn(array())
-        ;
-
-        $config
-            ->expects($this->any())
-            ->method('getRules')
-            ->willReturn(array())
-        ;
-
-        $config
-            ->expects($this->any())
-            ->method('getFinder')
-            ->willReturn(new \ArrayIterator(array()))
-        ;
-
-        $runner = new Runner(
-            $config,
-            new NullDiffer(),
-            null,
-            new ErrorsManager(),
-            new NullLinter(),
-            true
-        );
-
-        $runner->fix();
     }
 }

@@ -22,17 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class UnaryOperatorSpacesFixerTest extends AbstractFixerTestCase
 {
     /**
-     * {@inheritdoc}
-     */
-    protected function isLintException($source)
-    {
-        return in_array($source, array(
-            '<?php foo(+ $a, - 2,- $b, & $c);',
-            '<?php foo(+$a, -2,-$b, &$c);',
-        ), true);
-    }
-
-    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -94,6 +86,10 @@ final class UnaryOperatorSpacesFixerTest extends AbstractFixerTestCase
                 '<?php function & foo(){}',
             ),
             array(
+                '<?php function &foo(){}',
+                '<?php function &   foo(){}',
+            ),
+            array(
                 '<?php function foo(&$a, array &$b, Bar &$c) {}',
                 '<?php function foo(& $a, array & $b, Bar & $c) {}',
             ),
@@ -103,25 +99,31 @@ final class UnaryOperatorSpacesFixerTest extends AbstractFixerTestCase
     }
 
     /**
-     * @dataProvider provideCasesLT70
-     * @requires PHP <7.0
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideCasesLT54
+     * @requires PHP <5.4
      */
-    public function testFixLT70($expected, $input = null)
+    public function testFixLT54($expected, $input = null)
     {
         $this->doTest($expected, $input);
     }
 
-    public function provideCasesLT70()
+    public function provideCasesLT54()
     {
         return array(
             array(
-                '<?php foo(+$a, -2,-$b, &$c);',
-                '<?php foo(+ $a, - 2,- $b, & $c);',
+                '<?php function foo() {} foo(+$a, -2,-$b, &$c);',
+                '<?php function foo() {} foo(+ $a, - 2,- $b, & $c);',
             ),
         );
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases56
      * @requires PHP 5.6
      */

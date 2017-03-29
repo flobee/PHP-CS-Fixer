@@ -1,14 +1,12 @@
 --TEST--
 PHP 7 test.
---CONFIG--
+--RULESET--
 {
     "@Symfony": true,
     "ordered_imports": true
 }
---SETTINGS--
-checkPriority=false
 --REQUIREMENTS--
-php=7.0
+{"php": 70000}
 --EXPECT--
 <?php
 
@@ -71,15 +69,25 @@ class Foo implements FooInterface
     }
 
     // scalar typehinting
-    public function bar(int $a): string
+    public function bar1(int $a): string
     {
     }
 
-    public function getFnc()
+    // scalar typehinting
+    public function bar2(int $a): string
+    {
+    }
+
+    public function getFnc1()
     {
         return function () {
             echo 1;
         };
+    }
+
+    public function getFnc2()
+    {
+        return function () { echo 1; };
     }
 
     public function gen1()
@@ -170,11 +178,18 @@ class Foo implements FooInterface
     }
 
     // scalar typehinting
-    public function bar(int $a): string
+    public function bar1(int $a):string{}
+
+    // scalar typehinting
+    public function bar2(int $a)   :   string{}
+
+    public function getFnc1()
     {
+        return function () {
+                echo 1; };
     }
 
-    public function getFnc()
+    public function getFnc2()
     {
         return function () { echo 1; };
     }

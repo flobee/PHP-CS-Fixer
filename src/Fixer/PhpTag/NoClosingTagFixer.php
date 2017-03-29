@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\PhpTag;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -26,6 +28,17 @@ final class NoClosingTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'The closing `?>` tag MUST be omitted from files containing only PHP.',
+            array(new CodeSample("<?php\nclass Sample\n{\n}\n?>"))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_CLOSE_TAG);
@@ -34,9 +47,9 @@ final class NoClosingTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        if (!$tokens->isMonolithicPhp()) {
+        if (count($tokens) < 2 || !$tokens->isMonolithicPhp()) {
             return;
         }
 
@@ -46,24 +59,14 @@ final class NoClosingTagFixer extends AbstractFixer
             return;
         }
 
-        list($index, $token) = each($closeTags);
+        $index = key($closeTags);
 
         $tokens->removeLeadingWhitespace($index);
-        $token->clear();
+        $closeTags[$index]->clear();
 
-        $prevIndex = $tokens->getPrevNonWhitespace($index);
-        $prevToken = $tokens[$prevIndex];
-
-        if (!$prevToken->equalsAny(array(';', '}'))) {
+        $prevIndex = $tokens->getPrevMeaningfulToken($index);
+        if (!$tokens[$prevIndex]->equalsAny(array(';', '}', array(T_OPEN_TAG)))) {
             $tokens->insertAt($prevIndex + 1, new Token(';'));
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'The closing ?> tag MUST be omitted from files containing only PHP.';
     }
 }

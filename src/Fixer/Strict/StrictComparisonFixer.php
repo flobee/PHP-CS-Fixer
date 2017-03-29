@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Strict;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -20,6 +22,16 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class StrictComparisonFixer extends AbstractFixer
 {
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Comparisons should be strict.',
+            array(new CodeSample("<?php\n\$a = 1== \$b;")),
+            null,
+            'Changing comparisons to strict might change code behavior.'
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -39,7 +51,7 @@ final class StrictComparisonFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         static $map = array(
             T_IS_EQUAL => array(
@@ -59,13 +71,5 @@ final class StrictComparisonFixer extends AbstractFixer
                 $tokens->overrideAt($index, array($map[$tokenId]['id'], $map[$tokenId]['content']));
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Comparison should be strict.';
     }
 }

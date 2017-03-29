@@ -13,12 +13,15 @@
 namespace PhpCsFixer\Fixer\Semicolon;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Graham Campbell <graham@alt-three.com>
  */
-final class NoMultilineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
+final class NoMultilineWhitespaceBeforeSemicolonsFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
     /**
      * {@inheritdoc}
@@ -31,8 +34,30 @@ final class NoMultilineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
     {
+        return new FixerDefinition(
+            'Multi-line whitespace before closing semicolon are prohibited.',
+            array(
+                new CodeSample(
+                    '<?php
+function foo () {
+    return 1 + 2
+        ;
+}
+'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
+    {
+        $lineEnding = $this->whitespacesConfig->getLineEnding();
+
         foreach ($tokens as $index => $token) {
             if (!$token->equals(';')) {
                 continue;
@@ -45,18 +70,10 @@ final class NoMultilineWhitespaceBeforeSemicolonsFixer extends AbstractFixer
 
             $content = $previous->getContent();
             if (("\n" === $content[0] || "\r" === $content[0]) && $tokens[$index - 2]->isComment()) {
-                $previous->setContent("\r" === $content[0] ? "\r\n" : "\n");
+                $previous->setContent($lineEnding);
             } else {
                 $previous->clear();
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Multi-line whitespace before closing semicolon are prohibited.';
     }
 }

@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class NoSpacesAfterFunctionNameFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider testFixProvider
      */
     public function testFix($expected, $input = null)
@@ -32,18 +35,15 @@ final class NoSpacesAfterFunctionNameFixerTest extends AbstractFixerTestCase
     public function testFixProvider()
     {
         return array(
-           // test function call
-           array(
+            'test function call' => array(
                 '<?php abc($a);',
                 '<?php abc ($a);',
             ),
-           // test method call
-           array(
+            'test method call' => array(
                 '<?php $o->abc($a);',
                 '<?php $o->abc ($a);',
             ),
-           // test function-like constructs
-           array(
+            'test function-like constructs' => array(
                 '<?php
     include("something.php");
     include_once("something.php");
@@ -104,8 +104,7 @@ final class NoSpacesAfterFunctionNameFixerTest extends AbstractFixerTestCase
             array(
                 '<?php include ($html)? "custom.html": "custom.php";',
             ),
-            // don't touch function declarations
-            array(
+            'don\'t touch function declarations' => array(
                 '<?php
                 function TisMy ($p1)
                 {
@@ -121,11 +120,32 @@ final class NoSpacesAfterFunctionNameFixerTest extends AbstractFixerTestCase
                     }
                 }',
             ),
+            'test dynamic by array' => array(
+                '<?php $a["e"](1); $a{2}(1);',
+                '<?php $a["e"] (1); $a{2} (1);',
+            ),
+            'test variable variable' => array(
+                '<?php
+${$e}(1);
+$$e(2);
+                ',
+                "<?php
+\${\$e}\t(1);
+\$\$e    (2);
+                ",
+            ),
+            'test dynamic function and method calls' => array(
+                '<?php $b->$a(); $c();',
+                '<?php $b->$a  (); $c  ();',
+            ),
         );
     }
 
     /**
-     * @dataProvider testFixProvider
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provide54Cases
      * @requires PHP 5.4
      */
     public function test54($expected, $input = null)
@@ -136,8 +156,31 @@ final class NoSpacesAfterFunctionNameFixerTest extends AbstractFixerTestCase
     public function provide54Cases()
     {
         return array(
-           array(
+            array(
                 '<?php echo (new Process())->getOutput();',
+                '<?php echo (new Process())->getOutput ();',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provide70Cases
+     * @requires PHP 7.0
+     */
+    public function test70($expected, $input = null)
+    {
+        $this->doTest($expected, $input);
+    }
+
+    public function provide70Cases()
+    {
+        return array(
+            array(
+                '<?php $a()(1);',
+                '<?php $a () (1);',
             ),
         );
     }

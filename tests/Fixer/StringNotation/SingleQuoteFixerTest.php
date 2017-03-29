@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class SingleQuoteFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideTestFixCases
      */
     public function testFix($expected, $input = null)
@@ -74,8 +77,6 @@ EOF
                 '<?php $a = "foo \\\\(\$bar8)";',
             ),
             array('<?php $a = "foo \\" \\$$bar";'),
-            array('<?php $a = \'foo bar\';'),
-            array('<?php $a = \'foo "bar"\';'),
             array('<?php $a = "foo \'bar\'";'),
             array('<?php $a = "foo $bar";'),
             array('<?php $a = "foo ${bar}";'),

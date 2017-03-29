@@ -12,6 +12,7 @@
 
 namespace PhpCsFixer;
 
+use PhpCsFixer\Fixer\FixerInterface;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -28,13 +29,10 @@ abstract class AbstractProxyFixer extends AbstractFixer
 
     public function __construct()
     {
+        parent::__construct();
+
         $this->proxyFixer = $this->createProxyFixer();
     }
-
-    /**
-     * @return FixerInterface
-     */
-    abstract protected function createProxyFixer();
 
     /**
      * {@inheritdoc}
@@ -55,8 +53,13 @@ abstract class AbstractProxyFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $this->proxyFixer->fix($file, $tokens);
     }
+
+    /**
+     * @return FixerInterface
+     */
+    abstract protected function createProxyFixer();
 }

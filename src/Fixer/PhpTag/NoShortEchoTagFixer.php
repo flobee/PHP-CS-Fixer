@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\PhpTag;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\FixerDefinition\VersionSpecification;
+use PhpCsFixer\FixerDefinition\VersionSpecificCodeSample;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -24,28 +27,39 @@ final class NoShortEchoTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function isCandidate(Tokens $tokens)
+    public function getDefinition()
     {
-        return $tokens->isTokenKindFound(T_OPEN_TAG_WITH_ECHO)
-            /*
-             * HHVM parses '<?=' as T_ECHO instead of T_OPEN_TAG_WITH_ECHO
-             *
-             * @see https://github.com/facebook/hhvm/issues/4809
-             * @see https://github.com/facebook/hhvm/issues/7161
-             */
-            || (
-                defined('HHVM_VERSION')
-                && $tokens->isTokenKindFound(T_ECHO)
-            );
+        return new FixerDefinition(
+            'Replace short-echo `<?=` with long format `<?php echo` syntax.',
+            array(new VersionSpecificCodeSample('<?= "foo";', new VersionSpecification(50400)))
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function isCandidate(Tokens $tokens)
+    {
+        return $tokens->isTokenKindFound(T_OPEN_TAG_WITH_ECHO)
+        /*
+         * HHVM parses '<?=' as T_ECHO instead of T_OPEN_TAG_WITH_ECHO
+         *
+         * @see https://github.com/facebook/hhvm/issues/4809
+         * @see https://github.com/facebook/hhvm/issues/7161
+         */
+        || (
+            defined('HHVM_VERSION')
+            && $tokens->isTokenKindFound(T_ECHO)
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $i = count($tokens);
-
+        $HHVM = defined('HHVM_VERSION');
         while ($i--) {
             $token = $tokens[$i];
 
@@ -58,8 +72,7 @@ final class NoShortEchoTagFixer extends AbstractFixer
                      * @see https://github.com/facebook/hhvm/issues/4809
                      * @see https://github.com/facebook/hhvm/issues/7161
                      */
-                    defined('HHVM_VERSION')
-                    && $token->equals(array(T_ECHO, '<?='))
+                    $HHVM && $token->equals(array(T_ECHO, '<?='))
                 )
             ) {
                 continue;
@@ -75,13 +88,5 @@ final class NoShortEchoTagFixer extends AbstractFixer
 
             $tokens->insertAt($nextIndex, new Token(array(T_ECHO, 'echo')));
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Replace short-echo <?= with long format <?php echo syntax.';
     }
 }

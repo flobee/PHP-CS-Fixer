@@ -13,14 +13,37 @@
 namespace PhpCsFixer\Fixer\ReturnNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class BlankLineBeforeReturnFixer extends AbstractFixer
+final class BlankLineBeforeReturnFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'An empty line feed should precede a return statement.',
+            array(new CodeSample("<?php\nfunction A()\n{\n    echo 1;\n    return 1;\n}"))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run after NoUselessReturnFixer
+        return -19;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -32,8 +55,10 @@ final class BlankLineBeforeReturnFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
+        $lineEnding = $this->whitespacesConfig->getLineEnding();
+
         for ($index = 0, $limit = $tokens->count(); $index < $limit; ++$index) {
             $token = $tokens[$index];
 
@@ -54,33 +79,16 @@ final class BlankLineBeforeReturnFixer extends AbstractFixer
                 $countParts = count($parts);
 
                 if (1 === $countParts) {
-                    $prevToken->setContent(rtrim($prevToken->getContent(), " \t")."\n\n");
+                    $prevToken->setContent(rtrim($prevToken->getContent(), " \t").$lineEnding.$lineEnding);
                 } elseif (count($parts) <= 2) {
-                    $prevToken->setContent("\n".$prevToken->getContent());
+                    $prevToken->setContent($lineEnding.$prevToken->getContent());
                 }
             } else {
-                $tokens->insertAt($index, new Token(array(T_WHITESPACE, "\n\n")));
+                $tokens->insertAt($index, new Token(array(T_WHITESPACE, $lineEnding.$lineEnding)));
 
                 ++$index;
                 ++$limit;
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'An empty line feed should precede a return statement.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run after NoUselessReturnFixer
-        return -19;
     }
 }

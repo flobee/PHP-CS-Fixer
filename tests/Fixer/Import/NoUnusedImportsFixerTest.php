@@ -130,11 +130,14 @@ namespace Foo\Bar\FooBar;
 
 use Foo\Bar\FooBar\Foo as Fooz;
 use Foo\Bar\FooBar\Aaa\Bbb;
+use XYZ\FQCN_XYZ;
 
 $a = new Baz();
 $b = new Fooz();
 $c = new Bar\Fooz();
 $d = new Bbb();
+$e = new FQCN_Babo();
+$f = new FQCN_XYZ();
 EOF;
 
         $input = <<<'EOF'
@@ -146,11 +149,15 @@ use Foo\Bar\FooBar\Baz;
 use Foo\Bar\FooBar\Foo as Fooz;
 use Foo\Bar\FooBar\Bar;
 use Foo\Bar\FooBar\Aaa\Bbb;
+use \Foo\Bar\FooBar\FQCN_Babo;
+use XYZ\FQCN_XYZ;
 
 $a = new Baz();
 $b = new Fooz();
 $c = new Bar\Fooz();
 $d = new Bbb();
+$e = new FQCN_Babo();
+$f = new FQCN_XYZ();
 EOF;
 
         $this->doTest($expected, $input);
@@ -381,6 +388,26 @@ EOF;
         $this->doTest($expected, $input);
     }
 
+    public function testPropertyName()
+    {
+        $expected = <<<'EOF'
+<?php
+
+
+$foo->bar = null;
+EOF;
+
+        $input = <<<'EOF'
+<?php
+
+use Foo\Bar;
+
+$foo->bar = null;
+EOF;
+
+        $this->doTest($expected, $input);
+    }
+
     public function testNamespacePart()
     {
         $expected = <<<'EOF'
@@ -402,6 +429,9 @@ EOF;
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider providerUseInString
      */
     public function testUseInString($expected, $input = null)
@@ -505,6 +535,9 @@ EOF;
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCloseTagCases
      */
     public function testFixABC($expected, $input = null)

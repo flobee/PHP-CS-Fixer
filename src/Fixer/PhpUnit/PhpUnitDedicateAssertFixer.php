@@ -13,16 +13,21 @@
 namespace PhpCsFixer\Fixer\PhpUnit;
 
 use PhpCsFixer\AbstractFixer;
-use PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverRootless;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerConfiguration\FixerOptionValidatorGenerator;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author SpacePossum
  */
-final class PhpUnitDedicateAssertFixer extends AbstractFixer
+final class PhpUnitDedicateAssertFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
-    private $fixMap = array(
+    private static $fixMap = array(
         'array_key_exists' => array('assertArrayNotHasKey', 'assertArrayHasKey'),
         'empty' => array('assertNotEmpty', 'assertEmpty'),
         'file_exists' => array('assertFileNotExists', 'assertFileExists'),
@@ -38,56 +43,13 @@ final class PhpUnitDedicateAssertFixer extends AbstractFixer
         'is_int' => true,
         'is_integer' => true,
         'is_long' => true,
-        'is_​numeric' => true,
+        'is_numeric' => true,
         'is_object' => true,
         'is_real' => true,
-        'is_​resource' => true,
+        'is_resource' => true,
         'is_scalar' => true,
         'is_string' => true,
     );
-
-    private $configuration = array(
-        'array_key_exists',
-        'empty',
-        'file_exists',
-        'is_infinite',
-        'is_nan',
-        'is_null',
-        'is_array',
-        'is_bool',
-        'is_boolean',
-        'is_callable',
-        'is_double',
-        'is_float',
-        'is_int',
-        'is_integer',
-        'is_long',
-        'is_​numeric',
-        'is_object',
-        'is_real',
-        'is_​resource',
-        'is_scalar',
-        'is_string',
-    );
-
-    /**
-     * @param array|null $configuration
-     */
-    public function configure(array $configuration = null)
-    {
-        if (null === $configuration) {
-            return;
-        }
-
-        $this->configuration = array();
-        foreach ($configuration as $method) {
-            if (!array_key_exists($method, $this->fixMap)) {
-                throw new InvalidFixerConfigurationException($this->getName(), sprintf('Unknown configuration method "%s".', $method));
-            }
-
-            $this->configuration[] = $method;
-        }
-    }
 
     /**
      * {@inheritdoc}
@@ -108,7 +70,43 @@ final class PhpUnitDedicateAssertFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'PHPUnit assertions like "assertInternalType", "assertFileExists", should be used over "assertTrue".',
+            array(
+                new CodeSample(
+                    '<?php
+$this->assertTrue(is_float( $a), "my message");
+$this->assertTrue(is_nan($a));
+'
+                ),
+                new CodeSample(
+                    '<?php
+$this->assertTrue(is_float( $a), "my message");
+$this->assertTrue(is_nan($a));
+',
+                    array('functions' => array('is_nan'))
+                ),
+            ),
+            null,
+            'Fixer could be risky if one is overriding PHPUnit\'s native methods.'
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run after the PhpUnitConstructFixer.
+        return -15;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         static $searchSequence = array(
             array(T_VARIABLE, '$this'),
@@ -133,18 +131,44 @@ final class PhpUnitDedicateAssertFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'PHPUnit assertions like "assertInternalType", "assertFileExists", should be used over "assertTrue".';
-    }
+        $values = array(
+            'array_key_exists',
+            'empty',
+            'file_exists',
+            'is_infinite',
+            'is_nan',
+            'is_null',
+            'is_array',
+            'is_bool',
+            'is_boolean',
+            'is_callable',
+            'is_double',
+            'is_float',
+            'is_int',
+            'is_integer',
+            'is_long',
+            'is_numeric',
+            'is_object',
+            'is_real',
+            'is_resource',
+            'is_scalar',
+            'is_string',
+        );
+        $generator = new FixerOptionValidatorGenerator();
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run after the PhpUnitConstructFixer.
-        return -15;
+        $functions = new FixerOptionBuilder('functions', 'List of assertions to fix.');
+        $functions = $functions
+            ->setAllowedTypes(array('array'))
+            ->setAllowedValues(array(
+                $generator->allowedValueIsSubsetOf($values),
+            ))
+            ->setDefault($values)
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolverRootless('functions', array($functions));
     }
 
     /**
@@ -226,13 +250,13 @@ final class PhpUnitDedicateAssertFixer extends AbstractFixer
         ) = $assertIndexes;
 
         $content = strtolower($tokens[$testIndex]->getContent());
-        if (!in_array($content, $this->configuration, true)) {
+        if (!in_array($content, $this->configuration['functions'], true)) {
             return $assertCallCloseIndex;
         }
 
-        if (is_array($this->fixMap[$content])) {
-            if (false !== $this->fixMap[$content][$isPositive]) {
-                $tokens[$assertCallIndex]->setContent($this->fixMap[$content][$isPositive]);
+        if (is_array(self::$fixMap[$content])) {
+            if (false !== self::$fixMap[$content][$isPositive]) {
+                $tokens[$assertCallIndex]->setContent(self::$fixMap[$content][$isPositive]);
                 $this->removeFunctionCall($tokens, $testDefaultNamespaceTokenIndex, $testIndex, $testOpenIndex, $testCloseIndex);
             }
 

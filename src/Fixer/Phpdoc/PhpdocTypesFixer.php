@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractPhpdocTypesFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 
 /**
  * @author Graham Campbell <graham@alt-three.com>
@@ -34,6 +36,7 @@ final class PhpdocTypesFixer extends AbstractPhpdocTypesFixer
         'float',
         'int',
         'integer',
+        'iterable',
         'mixed',
         'null',
         'object',
@@ -50,9 +53,22 @@ final class PhpdocTypesFixer extends AbstractPhpdocTypesFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    public function getDefinition()
     {
-        return 'The correct case must be used for standard PHP types in phpdoc.';
+        return new FixerDefinition(
+            'The correct case must be used for standard PHP types in phpdoc.',
+            array(
+                new CodeSample(
+                    '<?php
+/**
+ * @param STRING|String[] $bar
+ *
+ * @return inT[]
+ */
+'
+                ),
+            )
+        );
     }
 
     public function getPriority()

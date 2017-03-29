@@ -13,6 +13,12 @@
 namespace PhpCsFixer\Fixer\FunctionNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -21,14 +27,42 @@ use PhpCsFixer\Tokenizer\Tokens;
  *
  * @author Kuanhung Chen <ericj.tw@gmail.com>
  */
-final class MethodArgumentSpaceFixer extends AbstractFixer
+final class MethodArgumentSpaceFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
+    /**
+     * Method to insert space after comma and remove space before comma.
+     *
+     * @param Tokens $tokens
+     * @param int    $index
+     */
+    public function fixSpace(Tokens $tokens, $index)
+    {
+        @trigger_error(__METHOD__.' is deprecated and will be removed in 3.0', E_USER_DEPRECATED);
+        $this->fixSpace2($tokens, $index);
+    }
+
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    public function getDefinition()
     {
-        return 'In method arguments and method call, there MUST NOT be a space before each comma and there MUST be one space after each comma.';
+        return new FixerDefinition(
+            'In method arguments and method call, there MUST NOT be a space before each comma and there MUST be one space after each comma.',
+            array(
+                new CodeSample(
+                    "<?php\nfunction sample(\$a=10,\$b=20,\$c=30) {}\nsample(1,  2);",
+                    null
+                ),
+                new CodeSample(
+                    "<?php\nfunction sample(\$a=10,\$b=20,\$c=30) {}\nsample(1,  2);",
+                    array('keep_multiple_spaces_after_comma' => false)
+                ),
+                new CodeSample(
+                    "<?php\nfunction sample(\$a=10,\$b=20,\$c=30) {}\nsample(1,  2);",
+                    array('keep_multiple_spaces_after_comma' => true)
+                ),
+            )
+        );
     }
 
     /**
@@ -42,9 +76,9 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        for ($index = $tokens->count() - 1; $index >= 0; --$index) {
+        for ($index = $tokens->count() - 1; $index > 0; --$index) {
             $token = $tokens[$index];
 
             if ($token->equals('(') && !$tokens[$index - 1]->isGivenKind(T_ARRAY)) {
@@ -54,28 +88,18 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
     }
 
     /**
-     * Check if last item of current line is a comment.
-     *
-     * @param Tokens $tokens tokens to handle
-     * @param int    $index  index of token
-     *
-     * @return bool
+     * {@inheritdoc}
      */
-    private function isCommentLastLineToken(Tokens $tokens, $index)
+    protected function createConfigurationDefinition()
     {
-        if (!$tokens[$index]->isComment()) {
-            return false;
-        }
+        $keepMultipleSpacesAfterComma = new FixerOptionBuilder('keep_multiple_spaces_after_comma', 'Whether keep multiple spaces after comma.');
+        $keepMultipleSpacesAfterComma = $keepMultipleSpacesAfterComma
+            ->setAllowedTypes(array('bool'))
+            ->setDefault(false)
+            ->getOption()
+        ;
 
-        $nextToken = $tokens[$index + 1];
-
-        if (!$nextToken->isWhitespace()) {
-            return false;
-        }
-
-        $content = $nextToken->getContent();
-
-        return $content !== ltrim($content, "\r\n");
+        return new FixerConfigurationResolver(array($keepMultipleSpacesAfterComma));
     }
 
     /**
@@ -96,13 +120,13 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
                 continue;
             }
 
-            if ($token->isGivenKind(CT_ARRAY_SQUARE_BRACE_CLOSE)) {
+            if ($token->isGivenKind(CT::T_ARRAY_SQUARE_BRACE_CLOSE)) {
                 $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_ARRAY_SQUARE_BRACE, $index, false);
                 continue;
             }
 
             if ($token->equals(',')) {
-                $this->fixSpace($tokens, $index);
+                $this->fixSpace2($tokens, $index);
             }
         }
     }
@@ -113,7 +137,7 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
      * @param Tokens $tokens
      * @param int    $index
      */
-    public function fixSpace(Tokens $tokens, $index)
+    private function fixSpace2(Tokens $tokens, $index)
     {
         // remove space before comma if exist
         if ($tokens[$index - 1]->isWhitespace()) {
@@ -130,17 +154,12 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
         //  1) multiple spaces after comma
         //  2) no space after comma
         if ($nextToken->isWhitespace()) {
-            if ($this->isCommentLastLineToken($tokens, $index + 2)) {
+            if ($this->configuration['keep_multiple_spaces_after_comma'] || $this->isCommentLastLineToken($tokens, $index + 2)) {
                 return;
             }
 
             $newContent = ltrim($nextToken->getContent(), " \t");
-
-            if ('' === $newContent) {
-                $newContent = ' ';
-            }
-
-            $nextToken->setContent($newContent);
+            $nextToken->setContent('' === $newContent ? ' ' : $newContent);
 
             return;
         }
@@ -148,5 +167,24 @@ final class MethodArgumentSpaceFixer extends AbstractFixer
         if (!$this->isCommentLastLineToken($tokens, $index + 1)) {
             $tokens->insertAt($index + 1, new Token(array(T_WHITESPACE, ' ')));
         }
+    }
+
+    /**
+     * Check if last item of current line is a comment.
+     *
+     * @param Tokens $tokens tokens to handle
+     * @param int    $index  index of token
+     *
+     * @return bool
+     */
+    private function isCommentLastLineToken(Tokens $tokens, $index)
+    {
+        if (!$tokens[$index]->isComment() || !$tokens[$index + 1]->isWhitespace()) {
+            return false;
+        }
+
+        $content = $tokens[$index + 1]->getContent();
+
+        return $content !== ltrim($content, "\r\n");
     }
 }

@@ -23,30 +23,6 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class TokensTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @param Token[]|null $expected
-     * @param Token[]|null $input
-     */
-    private function assertEqualsTokensArray(array $expected = null, array $input = null)
-    {
-        if (null === $expected) {
-            $this->assertNull($input);
-
-            return;
-        } elseif (null === $input) {
-            $this->fail('While "input" is <null>, "expected" is not.');
-        }
-
-        $this->assertSame(array_keys($expected), array_keys($input), 'Both arrays need to have same keys.');
-
-        foreach ($expected as $index => $expectedToken) {
-            $this->assertTrue(
-                $expectedToken->equals($input[$index]),
-                sprintf('The token at index %d should be %s, got %s', $index, $expectedToken->toJson(), $input[$index]->toJson())
-            );
-        }
-    }
-
     public function testReadFromCacheAfterClearing()
     {
         $code = '<?php echo 1;';
@@ -64,9 +40,13 @@ final class TokensTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @param string     $source
+     * @param null|array $expected
+     * @param array      $params
+     *
      * @dataProvider provideFindSequence
      */
-    public function testFindSequence($source, $expected, array $params)
+    public function testFindSequence($source, array $expected = null, array $params)
     {
         $tokens = Tokens::fromCode($source);
 
@@ -261,18 +241,20 @@ final class TokensTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException \InvalidArgumentException
+     * @param string $message
+     * @param array  $sequence
+     *
      * @dataProvider provideFindSequenceExceptions
      */
-    public function testFindSequenceException($message, $sequence)
+    public function testFindSequenceException($message, array $sequence)
     {
+        $this->setExpectedException(
+            'InvalidArgumentException',
+            $message
+        );
+
         $tokens = Tokens::fromCode('<?php $x = 1;');
-        try {
-            $tokens->findSequence($sequence);
-        } catch (\InvalidArgumentException $e) {
-            $this->assertSame($message, $e->getMessage());
-            throw $e;
-        }
+        $tokens->findSequence($sequence);
     }
 
     public function provideFindSequenceExceptions()
@@ -613,31 +595,12 @@ PHP;
     }
 
     /**
-     * @param string  $source
-     * @param int[]   $indexes
-     * @param Token[] $expected
-     */
-    private function doTestClearTokens($source, array $indexes, array $expected)
-    {
-        Tokens::clearCache();
-        $tokens = Tokens::fromCode($source);
-        foreach ($indexes as $index) {
-            $tokens->clearTokenAndMergeSurroundingWhitespace($index);
-        }
-
-        $this->assertSame(count($expected), $tokens->count());
-        foreach ($expected as $index => $expectedToken) {
-            $token = $tokens[$index];
-            $expectedPrototype = $expectedToken->getPrototype();
-            if (is_array($expectedPrototype)) {
-                unset($expectedPrototype[2]); // don't compare token lines as our token mutations don't deal with line numbers
-            }
-
-            $this->assertTrue($token->equals($expectedPrototype), sprintf('The token at index %d should be %s, got %s', $index, json_encode($expectedPrototype), $token->toJson()));
-        }
-    }
-
-    /**
+     * @param int   $expectedIndex
+     * @param int   $direction
+     * @param int   $index
+     * @param array $findTokens
+     * @param bool  $caseSensitive
+     *
      * @dataProvider provideTokenOfKindSiblingCases
      */
     public function testTokenOfKindSibling(
@@ -737,28 +700,90 @@ PHP;
             array(4, '<?php $a[1];', Tokens::BLOCK_TYPE_INDEX_SQUARE_BRACE, 2),
             array(6, '<?php [1, "foo"];', Tokens::BLOCK_TYPE_ARRAY_SQUARE_BRACE, 1),
             array(5, '<?php $foo->{$bar};', Tokens::BLOCK_TYPE_DYNAMIC_PROP_BRACE, 3),
+            array(4, '<?php list($a) = $b;', Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, 2),
         );
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessageRegExp /^Invalid param type: -1\.$/
-     */
     public function testFindBlockEndInvalidType()
     {
+        $this->setExpectedExceptionRegExp(
+            'InvalidArgumentException',
+            '/^Invalid param type: -1\.$/'
+        );
+
         Tokens::clearCache();
         $tokens = Tokens::fromCode('<?php ');
         $tokens->findBlockEnd(-1, 0);
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessageRegExp /^Invalid param \$startIndex - not a proper block start\.$/
-     */
     public function testFindBlockEndInvalidStart()
     {
+        $this->setExpectedExceptionRegExp(
+            'InvalidArgumentException',
+            '/^Invalid param \$startIndex - not a proper block start\.$/'
+        );
+
         Tokens::clearCache();
         $tokens = Tokens::fromCode('<?php ');
         $tokens->findBlockEnd(Tokens::BLOCK_TYPE_DYNAMIC_VAR_BRACE, 0);
+    }
+
+    public function testParsingWithHHError()
+    {
+        if (!defined('HHVM_VERSION')) {
+            $this->markTestSkipped('Skip tests for PHP compiler when running on non HHVM compiler.');
+        }
+
+        $this->setExpectedException('ParseError');
+        Tokens::fromCode('<?php# this will cause T_HH_ERROR');
+    }
+
+    /**
+     * @param null|Token[] $expected
+     * @param null|Token[] $input
+     */
+    private function assertEqualsTokensArray(array $expected = null, array $input = null)
+    {
+        if (null === $expected) {
+            $this->assertNull($input);
+
+            return;
+        } elseif (null === $input) {
+            $this->fail('While "input" is <null>, "expected" is not.');
+        }
+
+        $this->assertSame(array_keys($expected), array_keys($input), 'Both arrays need to have same keys.');
+
+        foreach ($expected as $index => $expectedToken) {
+            $this->assertTrue(
+                $expectedToken->equals($input[$index]),
+                sprintf('The token at index %d should be %s, got %s', $index, $expectedToken->toJson(), $input[$index]->toJson())
+            );
+        }
+    }
+
+    /**
+     * @param string  $source
+     * @param int[]   $indexes
+     * @param Token[] $expected
+     */
+    private function doTestClearTokens($source, array $indexes, array $expected)
+    {
+        Tokens::clearCache();
+        $tokens = Tokens::fromCode($source);
+        foreach ($indexes as $index) {
+            $tokens->clearTokenAndMergeSurroundingWhitespace($index);
+        }
+
+        $this->assertSame(count($expected), $tokens->count());
+        foreach ($expected as $index => $expectedToken) {
+            $token = $tokens[$index];
+            $expectedPrototype = $expectedToken->getPrototype();
+            if (is_array($expectedPrototype)) {
+                unset($expectedPrototype[2]); // don't compare token lines as our token mutations don't deal with line numbers
+            }
+
+            $this->assertTrue($token->equals($expectedPrototype), sprintf('The token at index %d should be %s, got %s', $index, json_encode($expectedPrototype), $token->toJson()));
+        }
     }
 }

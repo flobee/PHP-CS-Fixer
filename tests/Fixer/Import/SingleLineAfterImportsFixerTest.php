@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\Import;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Ceeram <ceeram@cakephp.org>
@@ -22,6 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class SingleLineAfterImportsFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -290,7 +294,7 @@ class C1 {}
             array(
                 '<?php
 namespace A1;
-use B1;// need to import this !
+use B1;# need to import this !
 use B2;
 
 class C1 {}
@@ -351,6 +355,9 @@ namespace Bar {
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provide70Cases
      * @requires PHP 7.0
      */
@@ -415,6 +422,33 @@ namespace Z\B;
 use const some\test\{ConstA, ConstB, ConstC};
 use A\B\C;
 ',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php namespace A\B;\r\n    use D;\r\n\r\n    class C {}",
+                "<?php namespace A\B;\r\n    use D;\r\n\r\n\r\n    class C {}",
+            ),
+            array(
+                "<?php namespace A\B;\r\n    use D;\r\n\r\n    class C {}",
+                "<?php namespace A\B;\r\n    use D;\r\n    class C {}",
             ),
         );
     }

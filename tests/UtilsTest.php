@@ -25,10 +25,10 @@ use PhpCsFixer\Utils;
 final class UtilsTest extends \PHPUnit_Framework_TestCase
 {
     /**
-     * @dataProvider provideCamelCaseToUnderscoreCases
-     *
      * @param string $expected Camel case string
      * @param string $input    Input string
+     *
+     * @dataProvider provideCamelCaseToUnderscoreCases
      */
     public function testCamelCaseToUnderscore($expected, $input = null)
     {
@@ -60,11 +60,14 @@ final class UtilsTest extends \PHPUnit_Framework_TestCase
             array(
                 'utf8_encoder_fixer',
             ),
-
         );
     }
 
     /**
+     * @param int $expected
+     * @param int $left
+     * @param int $right
+     *
      * @dataProvider provideCmpIntCases
      */
     public function testCmpInt($expected, $left, $right)
@@ -85,6 +88,9 @@ final class UtilsTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @param array  $expected
+     * @param string $input
+     *
      * @dataProvider provideSplitLinesCases
      */
     public function testSplitLines(array $expected, $input)
@@ -115,6 +121,9 @@ final class UtilsTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
+     * @param string $spaces
+     * @param string $input
+     *
      * @dataProvider provideCalculateTrailingWhitespaceIndentCases
      */
     public function testCalculateTrailingWhitespaceIndent($spaces, $input)
@@ -136,12 +145,13 @@ final class UtilsTest extends \PHPUnit_Framework_TestCase
         );
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The given token must be whitespace, got "T_STRING".
-     */
     public function testCalculateTrailingWhitespaceIndentFail()
     {
+        $this->setExpectedException(
+            'InvalidArgumentException',
+            'The given token must be whitespace, got "T_STRING".'
+        );
+
         $token = new Token(array(T_STRING, 'foo'));
 
         Utils::calculateTrailingWhitespaceIndent($token);

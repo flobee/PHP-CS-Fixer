@@ -12,6 +12,7 @@
 
 namespace PhpCsFixer\Linter;
 
+use PhpCsFixer\FileRemoval;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -41,6 +42,13 @@ final class ProcessLinter implements LinterInterface
     private $executable;
 
     /**
+     * Files removal handler.
+     *
+     * @var FileRemoval
+     */
+    private $fileRemoval;
+
+    /**
      * @param string|null $executable PHP executable, null for autodetection
      */
     public function __construct($executable = null)
@@ -52,15 +60,30 @@ final class ProcessLinter implements LinterInterface
             if (false === $executable) {
                 throw new UnavailableLinterException('Cannot find PHP executable.');
             }
+
+            if ('phpdbg' === PHP_SAPI) {
+                if (false === strpos($executable, 'phpdbg')) {
+                    throw new UnavailableLinterException('Automatically found PHP executable is non-standard phpdbg. Could not find proper PHP executable.');
+                }
+
+                // automatically found executable is `phpdbg`, let us try to fallback to regular `php`
+                $executable = str_replace('phpdbg', 'php', $executable);
+
+                if (!is_executable($executable)) {
+                    throw new UnavailableLinterException('Automatically found PHP executable is phpdbg. Could not find proper PHP executable.');
+                }
+            }
         }
 
         $this->executable = $executable;
+
+        $this->fileRemoval = new FileRemoval();
     }
 
     public function __destruct()
     {
         if (null !== $this->temporaryFile) {
-            unlink($this->temporaryFile);
+            $this->fileRemoval->delete($this->temporaryFile);
         }
     }
 
@@ -120,6 +143,7 @@ final class ProcessLinter implements LinterInterface
     {
         if (null === $this->temporaryFile) {
             $this->temporaryFile = tempnam('.', 'cs_fixer_tmp_');
+            $this->fileRemoval->observe($this->temporaryFile);
         }
 
         if (false === @file_put_contents($this->temporaryFile, $source)) {

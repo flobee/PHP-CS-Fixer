@@ -12,15 +12,16 @@
 
 namespace PhpCsFixer\Test;
 
+use GeckoPackages\PHPUnit\Constraints\SameStringsConstraint;
+use PhpCsFixer\Fixer\FixerInterface;
 use PhpCsFixer\FixerFactory;
-use PhpCsFixer\FixerInterface;
 use PhpCsFixer\Linter\Linter;
 use PhpCsFixer\Linter\LinterInterface;
-use PhpCsFixer\Linter\NullLinter;
 use PhpCsFixer\RuleSet;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Utils;
+use Prophecy\Argument;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
@@ -30,16 +31,32 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
     /**
      * @var LinterInterface
      */
-    protected static $linter;
+    protected $linter;
 
     /**
-     * @var FixerInterface|null
+     * @var null|FixerInterface
      */
-    private $fixer;
+    protected $fixer;
 
-    public static function setUpBeforeClass()
+    /**
+     * @var null|string
+     */
+    private $fixerClassName;
+
+    protected function setUp()
     {
-        static::$linter = getenv('LINT_TEST_CASES') ? new Linter() : new NullLinter();
+        $this->linter = $this->getLinter();
+        $this->fixer = $this->createFixer();
+    }
+
+    /**
+     * @return FixerInterface
+     */
+    protected function createFixer()
+    {
+        $fixerClassName = $this->getFixerClassName();
+
+        return new $fixerClassName();
     }
 
     /**
@@ -50,44 +67,6 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
     protected function createFixerFactory()
     {
         return FixerFactory::create()->registerBuiltInFixers();
-    }
-
-    /**
-     * @return FixerInterface
-     */
-    protected function getFixer()
-    {
-        if (null !== $this->fixer) {
-            return $this->fixer;
-        }
-
-        $name = $this->getFixerName();
-        $configuration = $this->getFixerConfiguration();
-
-        try {
-            $fixers = $this->createFixerFactory()
-                ->useRuleSet(new RuleSet(array($name => $configuration)))
-                ->getFixers()
-            ;
-        } catch (\UnexpectedValueException $e) {
-            throw new \UnexpectedValueException('Cannot determine fixer class, perhaps you forget to override `getFixerName` or `createFixerFactory` method?');
-        }
-
-        if (1 !== count($fixers)) {
-            throw new \UnexpectedValueException(sprintf('Determine fixer class should result in one fixer, got "%d". Perhaps you configured the fixer to "false" ?', count($fixers)));
-        }
-
-        $this->fixer = $fixers[0];
-
-        return $this->fixer;
-    }
-
-    /**
-     * @return bool|array
-     */
-    protected function getFixerConfiguration()
-    {
-        return true;
     }
 
     /**
@@ -128,20 +107,18 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
      * This method throws an exception if $expected and $input are equal to prevent test cases that accidentally do
      * not test anything.
      *
-     * @param string              $expected The expected fixer output
-     * @param string|null         $input    The fixer input, or null if it should intentionally be equal to the output
-     * @param \SplFileInfo|null   $file     The file to fix, or null if unneeded
-     * @param FixerInterface|null $fixer    The fixer to be used, or null if it should be inferred from the test name
+     * @param string            $expected The expected fixer output
+     * @param string|null       $input    The fixer input, or null if it should intentionally be equal to the output
+     * @param \SplFileInfo|null $file     The file to fix, or null if unneeded
      */
-    protected function doTest($expected, $input = null, \SplFileInfo $file = null, FixerInterface $fixer = null)
+    protected function doTest($expected, $input = null, \SplFileInfo $file = null)
     {
         if ($expected === $input) {
             throw new \InvalidArgumentException('Input parameter must not be equal to expected parameter.');
         }
 
-        $fixer = $fixer ?: $this->getFixer();
         $file = $file ?: $this->getTestFile();
-        $fileIsSupported = $fixer->supports($file);
+        $fileIsSupported = $this->fixer->supports($file);
 
         if (null !== $input) {
             $this->assertNull($this->lintSource($input));
@@ -150,12 +127,17 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
             $tokens = Tokens::fromCode($input);
 
             if ($fileIsSupported) {
-                $this->assertTrue($fixer->isCandidate($tokens), 'Fixer must be a candidate for input code.');
-                $fixResult = $fixer->fix($file, $tokens);
+                $this->assertTrue($this->fixer->isCandidate($tokens), 'Fixer must be a candidate for input code.');
+                $this->assertFalse($tokens->isChanged(), 'Fixer must not touch Tokens on candidate check.');
+                $fixResult = $this->fixer->fix($file, $tokens);
                 $this->assertNull($fixResult, '->fix method must return null.');
             }
 
-            $this->assertSame($expected, $tokens->generateCode(), 'Code build on input code must match expected code.');
+            $this->assertThat(
+                $tokens->generateCode(),
+                new SameStringsConstraint($expected),
+                'Code build on input code must match expected code.'
+            );
             $this->assertTrue($tokens->isChanged(), 'Tokens collection built on input code must be marked as changed after fixing.');
 
             $tokens->clearEmptyTokens();
@@ -178,19 +160,16 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
         Tokens::clearCache();
         $tokens = Tokens::fromCode($expected);
 
-        $isCandidate = $fixer->isCandidate($tokens);
-        $this->assertFalse($tokens->isChanged(), 'Fixer should not touch Tokens on candidate check.');
-
-        if (!$isCandidate) {
-            return;
-        }
-
         if ($fileIsSupported) {
-            $fixResult = $fixer->fix($file, $tokens);
+            $fixResult = $this->fixer->fix($file, $tokens);
             $this->assertNull($fixResult, '->fix method must return null.');
         }
 
-        $this->assertSame($expected, $tokens->generateCode(), 'Code build on expected code must not change.');
+        $this->assertThat(
+            $tokens->generateCode(),
+            new SameStringsConstraint($expected),
+            'Code build on expected code must not change.'
+        );
         $this->assertFalse($tokens->isChanged(), 'Tokens collection built on expected code must not be marked as changed after fixing.');
     }
 
@@ -201,25 +180,11 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
      */
     protected function lintSource($source)
     {
-        if ($this->isLintException($source)) {
-            return;
-        }
-
         try {
-            static::$linter->lintSource($source)->check();
+            $this->linter->lintSource($source)->check();
         } catch (\Exception $e) {
             return $e->getMessage()."\n\nSource:\n$source";
         }
-    }
-
-    /**
-     * @param string $source
-     *
-     * @return bool
-     */
-    protected function isLintException($source)
-    {
-        return false;
     }
 
     private function assertTokens(Tokens $expectedTokens, Tokens $inputTokens)
@@ -243,5 +208,55 @@ abstract class AbstractFixerTestCase extends \PHPUnit_Framework_TestCase
                 sprintf('The token kind %s must be found in fixed tokens collection.', $tokenKind)
             );
         }
+    }
+
+    /**
+     * @return LinterInterface
+     */
+    private function getLinter()
+    {
+        static $linter = null;
+
+        if (null === $linter) {
+            if (getenv('SKIP_LINT_TEST_CASES')) {
+                $linterProphecy = $this->prophesize('PhpCsFixer\Linter\LinterInterface');
+                $linterProphecy
+                    ->lintSource(Argument::type('string'))
+                    ->willReturn($this->prophesize('PhpCsFixer\Linter\LintingResultInterface')->reveal());
+
+                $linter = $linterProphecy->reveal();
+            } else {
+                $linter = new Linter();
+            }
+        }
+
+        return $linter;
+    }
+
+    /**
+     * @return string
+     */
+    private function getFixerClassName()
+    {
+        if (null !== $this->fixerClassName) {
+            return $this->fixerClassName;
+        }
+
+        try {
+            $fixers = $this->createFixerFactory()
+                ->useRuleSet(new RuleSet(array($this->getFixerName() => true)))
+                ->getFixers()
+            ;
+        } catch (\UnexpectedValueException $e) {
+            throw new \UnexpectedValueException('Cannot determine fixer class, perhaps you forget to override `getFixerName` or `createFixerFactory` method?', 0, $e);
+        }
+
+        if (1 !== count($fixers)) {
+            throw new \UnexpectedValueException(sprintf('Determine fixer class should result in one fixer, got "%d". Perhaps you configured the fixer to "false" ?', count($fixers)));
+        }
+
+        $this->fixerClassName = get_class($fixers[0]);
+
+        return $this->fixerClassName;
     }
 }

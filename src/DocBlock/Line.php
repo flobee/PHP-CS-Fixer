@@ -37,9 +37,19 @@ class Line
     }
 
     /**
+     * Get the string representation of object.
+     *
+     * @return string
+     */
+    public function __toString()
+    {
+        return $this->content;
+    }
+
+    /**
      * Get the content of this line.
      *
-     * @return int
+     * @return string
      */
     public function getContent()
     {
@@ -121,18 +131,12 @@ class Line
      */
     public function addBlank()
     {
-        preg_match_all('/\ *\*/', $this->content, $matches);
+        $matched = preg_match('/^([ \t]*\*)[^\r\n]*(\r?\n)$/', $this->content, $matches);
 
-        $this->content .= $matches[0][0]."\n";
-    }
+        if (1 !== $matched) {
+            return;
+        }
 
-    /**
-     * Get the string representation of object.
-     *
-     * @return string
-     */
-    public function __toString()
-    {
-        return $this->content;
+        $this->content .= $matches[1].$matches[2];
     }
 }

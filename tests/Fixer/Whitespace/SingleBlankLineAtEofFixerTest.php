@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\Whitespace;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
@@ -22,6 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class SingleBlankLineAtEofFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -32,9 +36,11 @@ final class SingleBlankLineAtEofFixerTest extends AbstractFixerTestCase
     public function provideCases()
     {
         return array(
-            array(
-                // test for not adding an empty line in empty file
+            'Not adding an empty line in empty file.' => array(
                 '',
+            ),
+            'Not adding an empty line in file with only white space.' => array(
+                '  ',
             ),
             array(
                 "<?php\n",
@@ -66,9 +72,7 @@ $a = 3;
                 "<?php\r\n\$a = 4;",
             ),
             array(
-                // test not changing line break characters,
-                // this is not the responsibility of this fixer
-                "<?php\r\n\$a = 5;\r\n",
+                "<?php\r\n\$a = 5;\n",
                 "<?php\r\n\$a = 5;\r\n    \r\n",
             ),
             array(
@@ -133,6 +137,33 @@ inline 1
             array(
                 "<?php return true;\n/*\nA comment\n*/\n",
                 "<?php return true;\n/*\nA comment\n*/\n\n",
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\n\$a = 4;\r\n",
+                "<?php\r\n\$a = 4;",
+            ),
+            array(
+                "<?php\r\n\$a = 5;\r\n",
+                "<?php\r\n\$a = 5;\r\n    \r\n",
             ),
         );
     }

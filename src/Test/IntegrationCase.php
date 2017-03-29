@@ -12,15 +12,18 @@
 
 namespace PhpCsFixer\Test;
 
-use PhpCsFixer\FixerInterface;
+use PhpCsFixer\RuleSet;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
- *
- * @internal
  */
 final class IntegrationCase
 {
+    /**
+     * @var array
+     */
+    private $config = array();
+
     /**
      * @var string
      */
@@ -30,11 +33,6 @@ final class IntegrationCase
      * @var string
      */
     private $fileName;
-
-    /**
-     * @var FixerInterface[]
-     */
-    private $fixers = array();
 
     /**
      * @var string|null
@@ -49,7 +47,12 @@ final class IntegrationCase
     private $requirements = array();
 
     /**
-     * Settings how to perform the test (possible keys: checkPriority).
+     * @var RuleSet
+     */
+    private $ruleset;
+
+    /**
+     * Settings how to perform the test (possible keys: none in base class, use as extension point for custom IntegrationTestCase).
      *
      * @var array
      */
@@ -60,14 +63,44 @@ final class IntegrationCase
      */
     private $title;
 
-    public static function create()
-    {
-        return new self();
+    /**
+     * @param string      $fileName
+     * @param string      $title
+     * @param array       $settings
+     * @param array       $requirements
+     * @param array       $config
+     * @param RuleSet     $ruleset
+     * @param string      $expectedCode
+     * @param string|null $inputCode
+     */
+    public function __construct(
+        $fileName,
+        $title,
+        array $settings,
+        array $requirements,
+        array $config,
+        RuleSet $ruleset,
+        $expectedCode,
+        $inputCode
+    ) {
+        $this->fileName = $fileName;
+        $this->title = $title;
+        $this->settings = $settings;
+        $this->requirements = $requirements;
+        $this->config = $config;
+        $this->ruleset = $ruleset;
+        $this->expectedCode = $expectedCode;
+        $this->inputCode = $inputCode;
     }
 
     public function hasInputCode()
     {
         return null !== $this->inputCode;
+    }
+
+    public function getConfig()
+    {
+        return $this->config;
     }
 
     public function getExpectedCode()
@@ -80,24 +113,42 @@ final class IntegrationCase
         return $this->fileName;
     }
 
-    public function getFixers()
-    {
-        return $this->fixers;
-    }
-
     public function getInputCode()
     {
         return $this->inputCode;
     }
 
+    /**
+     * @param string $name
+     *
+     * @return mixed
+     */
     public function getRequirement($name)
     {
+        if (!is_string($name)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Requirement key must be a string, got "%s".',
+                is_object($name) ? get_class($name) : gettype($name).'#'.$name));
+        }
+
+        if (!array_key_exists($name, $this->requirements)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown requirement key "%s", expected any of "%s".',
+                $name, implode('","', array_keys($this->requirements)))
+            );
+        }
+
         return $this->requirements[$name];
     }
 
     public function getRequirements()
     {
         return $this->requirements;
+    }
+
+    public function getRuleset()
+    {
+        return $this->ruleset;
     }
 
     public function getSettings()
@@ -110,57 +161,21 @@ final class IntegrationCase
         return $this->title;
     }
 
-    public function setExpectedCode($expectedCode)
-    {
-        $this->expectedCode = $expectedCode;
-
-        return $this;
-    }
-
-    public function setFileName($fileName)
-    {
-        $this->fileName = $fileName;
-
-        return $this;
-    }
-
-    public function setFixers(array $fixers)
-    {
-        $this->fixers = $fixers;
-
-        return $this;
-    }
-
-    public function setInputCode($inputCode)
-    {
-        $this->inputCode = $inputCode;
-
-        return $this;
-    }
-
-    public function setRequirements(array $requirements)
-    {
-        $this->requirements = $requirements;
-
-        return $this;
-    }
-
-    public function setSettings($settings)
-    {
-        $this->settings = $settings;
-
-        return $this;
-    }
-
-    public function setTitle($title)
-    {
-        $this->title = $title;
-
-        return $this;
-    }
-
+    /**
+     * @return bool
+     *
+     * @deprecated since v2.1, on ~2.1 line IntegrationTest check whether different priorities are required is done automatically, this method will be removed on v3.0
+     */
     public function shouldCheckPriority()
     {
-        return $this->settings['checkPriority'];
+        @trigger_error(
+            sprintf(
+                'The "%s" method is deprecated. You should stop using it, as it will be removed in 3.0 version.',
+                __METHOD__
+            ),
+            E_USER_DEPRECATED
+        );
+
+        return isset($this->settings['checkPriority']) ? $this->settings['checkPriority'] : true;
     }
 }

@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class HashToSlashCommentFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixCases
      */
     public function testFix($expected, $input = null)
@@ -69,6 +72,10 @@ final class HashToSlashCommentFixerTest extends AbstractFixerTestCase
                     # test3
                     # test 4
                 ',
+            ),
+            array(
+                '<?php // a',
+                '<?php # a',
             ),
         );
     }

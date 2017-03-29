@@ -14,6 +14,8 @@ namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\DocBlock\DocBlock;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -21,6 +23,24 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class PhpdocAnnotationWithoutDotFixer extends AbstractFixer
 {
+    private $tags = array('throws', 'return', 'param', 'internal', 'deprecated', 'var', 'type');
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Phpdocs annotation descriptions should not be a sentence.',
+            array(new CodeSample('<?php
+/**
+ * @param string $bar Some string.
+ */
+function foo ($bar) {}
+'))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -32,7 +52,7 @@ final class PhpdocAnnotationWithoutDotFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $token) {
             if (!$token->isGivenKind(T_DOC_COMMENT)) {
@@ -47,25 +67,35 @@ final class PhpdocAnnotationWithoutDotFixer extends AbstractFixer
             }
 
             foreach ($annotations as $annotation) {
-                if ($annotation->getTag()->valid()) {
-                    $line = $doc->getLine($annotation->getEnd());
-
-                    $content = preg_replace('/(?<![.。])[.。](\s+)$/u', '\1', $line->getContent());
-
-                    if (null !== $content) {
-                        $line->setContent($content);
-                    }
+                if (
+                    !$annotation->getTag()->valid() || !in_array($annotation->getTag()->getName(), $this->tags, true)
+                ) {
+                    continue;
                 }
+
+                $content = $annotation->getContent();
+
+                if (
+                    1 !== preg_match('/[.。]$/u', $content)
+                    || 0 !== preg_match('/[.。](?!$)/u', $content, $matches)
+                ) {
+                    continue;
+                }
+
+                $endLine = $doc->getLine($annotation->getEnd());
+                $endLine->setContent(preg_replace('/(?<![.。])[.。](\s+)$/u', '\1', $endLine->getContent()));
+
+                $startLine = $doc->getLine($annotation->getStart());
+                $optionalTypeRegEx = $annotation->supportTypes()
+                    ? sprintf('(?:%s\s+(?:\$\w+\s+)?)?', preg_quote(implode('|', $annotation->getTypes())))
+                    : '';
+                $content = preg_replace_callback('/^(\s*\*\s*@\w+\s+'.$optionalTypeRegEx.')(.*)$/', function (array $matches) {
+                    return $matches[1].lcfirst($matches[2]);
+                }, $startLine->getContent(), 1);
+                $startLine->setContent($content);
             }
+
             $token->setContent($doc->getContent());
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Phpdocs annotation descriptions should not end with a full stop.';
     }
 }

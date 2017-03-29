@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\NamespaceNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -21,8 +24,31 @@ use PhpCsFixer\Tokenizer\Tokens;
  *
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class BlankLineAfterNamespaceFixer extends AbstractFixer
+final class BlankLineAfterNamespaceFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'There MUST be one blank line after the namespace declaration.',
+            array(
+                new CodeSample("<?php\nnamespace Sample\\Sample;\n\n\n\$a;"),
+                new CodeSample("<?php\nnamespace Sample\\Sample;\nClass Test{}"),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run after the NoUnusedImportsFixer
+        return -20;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -34,8 +60,9 @@ final class BlankLineAfterNamespaceFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
+        $ending = $this->whitespacesConfig->getLineEnding();
         $lastIndex = $tokens->count() - 1;
 
         for ($index = $lastIndex; $index >= 0; --$index) {
@@ -56,29 +83,12 @@ final class BlankLineAfterNamespaceFixer extends AbstractFixer
             $nextToken = $tokens[$nextIndex];
 
             if (!$nextToken->isWhitespace()) {
-                $tokens->insertAt($semicolonIndex + 1, new Token(array(T_WHITESPACE, "\n\n")));
+                $tokens->insertAt($semicolonIndex + 1, new Token(array(T_WHITESPACE, $ending.$ending)));
             } else {
                 $nextToken->setContent(
-                    ($nextIndex === $lastIndex ? "\n" : "\n\n").ltrim($nextToken->getContent())
+                    ($nextIndex === $lastIndex ? $ending : $ending.$ending).ltrim($nextToken->getContent())
                 );
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'There MUST be one blank line after the namespace declaration.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run after the NoUnusedImportsFixer
-        return -20;
     }
 }

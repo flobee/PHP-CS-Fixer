@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\Strict;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -21,6 +24,19 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class StrictParamFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Functions should be used with `$strict` param set to `true`.',
+            array(new CodeSample("<?php\n\$a = array_keys(\$b);\n\$a = array_search(\$b, \$c);\n\$a = base64_decode(\$b);\n\$a = in_array(\$b, \$c);\n\$a = mb_detect_encoding(\$b, \$c);\n")),
+            'The functions "array_keys", "array_search", "base64_decode", "in_array" and "mb_detect_encoding" should be used with $strict param.',
+            'Risky when the fixed function is overridden or if the code relies on non-strict usage.'
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -40,7 +56,7 @@ final class StrictParamFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         static $map = null;
 
@@ -48,10 +64,10 @@ final class StrictParamFixer extends AbstractFixer
             $trueToken = new Token(array(T_STRING, 'true'));
 
             $map = array(
-                'in_array' => array(null, null, $trueToken),
-                'base64_decode' => array(null, $trueToken),
-                'array_search' => array(null, null, $trueToken),
                 'array_keys' => array(null, null, $trueToken),
+                'array_search' => array(null, null, $trueToken),
+                'base64_decode' => array(null, $trueToken),
+                'in_array' => array(null, null, $trueToken),
                 'mb_detect_encoding' => array(null, array(new Token(array(T_STRING, 'mb_detect_order')), new Token('('), new Token(')')), $trueToken),
             );
         }
@@ -63,14 +79,6 @@ final class StrictParamFixer extends AbstractFixer
                 $this->fixFunction($tokens, $index, $map[$token->getContent()]);
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Functions should be used with $strict param.';
     }
 
     private function fixFunction(Tokens $tokens, $functionIndex, array $functionParams)
@@ -92,7 +100,7 @@ final class StrictParamFixer extends AbstractFixer
                 continue;
             }
 
-            if ($token->isGivenKind(CT_ARRAY_SQUARE_BRACE_OPEN)) {
+            if ($token->isGivenKind(CT::T_ARRAY_SQUARE_BRACE_OPEN)) {
                 $index = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_ARRAY_SQUARE_BRACE, $index);
                 continue;
             }

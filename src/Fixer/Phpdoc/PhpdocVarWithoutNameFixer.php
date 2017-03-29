@@ -15,6 +15,8 @@ namespace PhpCsFixer\Fixer\Phpdoc;
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\DocBlock\DocBlock;
 use PhpCsFixer\DocBlock\Line;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -22,6 +24,31 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class PhpdocVarWithoutNameFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            '@var and @type annotations should not contain the variable name.',
+            array(new CodeSample('<?php
+final class Foo
+{
+    /**
+     * @var int $bar
+     */
+    public $bar;
+
+    /**
+     * @var $baz float
+     */
+    public $baz;
+
+}
+'))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -33,7 +60,7 @@ final class PhpdocVarWithoutNameFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $token) {
             if (!$token->isGivenKind(T_DOC_COMMENT)) {
@@ -58,14 +85,6 @@ final class PhpdocVarWithoutNameFixer extends AbstractFixer
 
             $token->setContent($doc->getContent());
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return '@var and @type annotations should not contain the variable name.';
     }
 
     private function fixLine(Line $line)

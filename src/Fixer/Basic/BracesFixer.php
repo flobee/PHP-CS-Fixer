@@ -13,6 +13,13 @@
 namespace PhpCsFixer\Fixer\Basic;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Tokenizer\TokensAnalyzer;
@@ -22,8 +29,106 @@ use PhpCsFixer\Tokenizer\TokensAnalyzer;
  *
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class BracesFixer extends AbstractFixer
+final class BracesFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface, WhitespacesAwareFixerInterface
 {
+    /**
+     * @internal
+     */
+    const LINE_NEXT = 'next';
+
+    /**
+     * @internal
+     */
+    const LINE_SAME = 'same';
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'The body of each structure MUST be enclosed by braces. Braces should be properly placed. Body of braces should be properly indented.',
+            array(
+                new CodeSample(
+'<?php
+
+class Foo {
+    public function bar($baz) {
+        if ($baz = 900) echo "Hello!";
+
+        if ($baz = 9000)
+            echo "Wait!";
+
+        if ($baz == true)
+        {
+            echo "Why?";
+        }
+        else
+        {
+            echo "Ha?";
+        }
+
+        if (is_array($baz))
+            foreach ($baz as $b)
+            {
+                echo $b;
+            }
+    }
+}
+'
+                ),
+                new CodeSample(
+'<?php
+$positive = function ($item) { return $item >= 0; };
+$negative = function ($item) {
+                return $item < 0; };
+',
+                    array('allow_single_line_closure' => true)
+                ),
+                new CodeSample(
+'<?php
+
+class Foo
+{
+    public function bar($baz)
+    {
+        if ($baz = 900) echo "Hello!";
+
+        if ($baz = 9000)
+            echo "Wait!";
+
+        if ($baz == true)
+        {
+            echo "Why?";
+        }
+        else
+        {
+            echo "Ha?";
+        }
+
+        if (is_array($baz))
+            foreach ($baz as $b)
+            {
+                echo $b;
+            }
+    }
+}
+',
+                    array('position_after_functions_and_oop_constructs' => self::LINE_SAME)
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run after the ElseIfFixer, NoEmptyStatementFixer and NoUselessElseFixer
+        return -25;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -35,7 +140,7 @@ final class BracesFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $this->fixCommentBeforeBrace($tokens);
         $this->fixMissingControlBraces($tokens);
@@ -48,18 +153,26 @@ final class BracesFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'The body of each structure MUST be enclosed by braces. Braces should be properly placed. Body of braces should be properly indented.';
-    }
+        $allowSingleLineClosure = new FixerOptionBuilder('allow_single_line_closure', 'Whether single line lambda notation should be allowed.');
+        $allowSingleLineClosure = $allowSingleLineClosure
+            ->setAllowedTypes(array('bool'))
+            ->setDefault(false)
+            ->getOption()
+        ;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run after the ElseIfFixer, NoEmptyStatementFixer and NoUselessElseFixer
-        return -25;
+        $positionAfterFunctionsAndOopConstructs = new FixerOptionBuilder('position_after_functions_and_oop_constructs', 'whether the opening brace should be placed on "next" or "same" line after classy constructs (non-anonymous classes, interfaces, traits, methods and non-lambda functions).');
+        $positionAfterFunctionsAndOopConstructs = $positionAfterFunctionsAndOopConstructs
+            ->setAllowedValues(array(self::LINE_NEXT, self::LINE_SAME))
+            ->setDefault(self::LINE_NEXT)
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolver(array(
+            $allowSingleLineClosure,
+            $positionAfterFunctionsAndOopConstructs,
+        ));
     }
 
     private function fixCommentBeforeBrace(Tokens $tokens)
@@ -73,8 +186,8 @@ final class BracesFixer extends AbstractFixer
             if ($token->isGivenKind($controlTokens)) {
                 $prevIndex = $this->findParenthesisEnd($tokens, $index);
             } elseif (
-                $token->isGivenKind(T_FUNCTION) && $tokensAnalyzer->isLambda($index) ||
-                $token->isGivenKind(T_CLASS) && $tokensAnalyzer->isAnonymousClass($index)
+                ($token->isGivenKind(T_FUNCTION) && $tokensAnalyzer->isLambda($index)) ||
+                ($token->isGivenKind(T_CLASS) && $tokensAnalyzer->isAnonymousClass($index))
             ) {
                 $prevIndex = $tokens->getNextTokenOfKind($index, array('{'));
                 $prevIndex = $tokens->getPrevMeaningfulToken($prevIndex);
@@ -85,7 +198,7 @@ final class BracesFixer extends AbstractFixer
             $commentIndex = $tokens->getNextNonWhitespace($prevIndex);
             $commentToken = $tokens[$commentIndex];
 
-            if (!$commentToken->isGivenKind(T_COMMENT) || '/*' === substr($commentToken->getContent(), 0, 2)) {
+            if (!$commentToken->isGivenKind(T_COMMENT) || 0 === strpos($commentToken->getContent(), '/*')) {
                 continue;
             }
 
@@ -97,17 +210,22 @@ final class BracesFixer extends AbstractFixer
             }
 
             $tokenTmp = $tokens[$braceIndex];
-            $trimIndex = $tokens->getPrevNonWhitespace($braceIndex);
-            $tokens[$trimIndex]->setContent(rtrim($tokens[$trimIndex]->getContent()));
 
             $newBraceIndex = $prevIndex + 1;
             for ($i = $braceIndex; $i > $newBraceIndex; --$i) {
+                // we might be moving one white space next to another, these have to be merged
                 $tokens[$i] = $tokens[$i - 1];
+                if ($tokens[$i]->isWhitespace() && $tokens[$i + 1]->isWhitespace()) {
+                    $tokens[$i]->setContent($tokens[$i]->getContent().$tokens[$i + 1]->getContent());
+                    $tokens[$i + 1]->clear();
+                }
             }
 
             $tokens[$newBraceIndex] = $tokenTmp;
-            if ($tokens[$braceIndex]->isWhitespace()) {
-                $tokens[$braceIndex]->clear();
+            $c = $tokens[$braceIndex]->getContent();
+            if (substr_count($c, "\n") > 1) {
+                // left trim till last line break
+                $tokens[$braceIndex]->setContent(substr($c, strrpos($c, "\n")));
             }
         }
     }
@@ -186,12 +304,21 @@ final class BracesFixer extends AbstractFixer
                 continue;
             }
 
-            // do not change import of functions
             if (
-                $token->isGivenKind(T_FUNCTION)
-                && $tokens[$tokens->getPrevMeaningfulToken($index)]->isGivenKind(T_USE)
+                $this->configuration['allow_single_line_closure']
+                && $token->isGivenKind(T_FUNCTION)
+                && $tokensAnalyzer->isLambda($index)
             ) {
-                continue;
+                $braceEndIndex = $tokens->findBlockEnd(
+                    Tokens::BLOCK_TYPE_CURLY_BRACE,
+                    $tokens->getNextTokenOfKind($index, array('{'))
+                );
+
+                if (!$this->isMultilined($tokens, $index, $braceEndIndex)) {
+                    $index = $braceEndIndex;
+
+                    continue;
+                }
             }
 
             if ($token->isGivenKind($classyAndFunctionTokens)) {
@@ -213,7 +340,7 @@ final class BracesFixer extends AbstractFixer
             $indent = $this->detectIndent($tokens, $index);
 
             // fix indent near closing brace
-            $tokens->ensureWhitespaceAtIndex($endBraceIndex - 1, 1, "\n".$indent);
+            $tokens->ensureWhitespaceAtIndex($endBraceIndex - 1, 1, $this->whitespacesConfig->getLineEnding().$indent);
 
             // fix indent between braces
             $lastCommaIndex = $tokens->getPrevTokenOfKind($endBraceIndex - 1, array(';', '}'));
@@ -235,7 +362,7 @@ final class BracesFixer extends AbstractFixer
                         // next Token is not a comment
                         !$nextNonWhitespaceNestToken->isComment() &&
                         // and it is not a `$foo = function () {};` situation
-                        !($nestToken->equals('}') && $nextNonWhitespaceNestToken->equalsAny(array(';', ',', ']', array(CT_ARRAY_SQUARE_BRACE_CLOSE)))) &&
+                        !($nestToken->equals('}') && $nextNonWhitespaceNestToken->equalsAny(array(';', ',', ']', array(CT::T_ARRAY_SQUARE_BRACE_CLOSE)))) &&
                         // and it is not a `Foo::{bar}()` situation
                         !($nestToken->equals('}') && $nextNonWhitespaceNestToken->equals('(')) &&
                         // and it is not a `${"a"}->...` and `${"b{$foo}"}->...` situation
@@ -257,15 +384,20 @@ final class BracesFixer extends AbstractFixer
                             if ($nextToken->isWhitespace()) {
                                 $nextWhitespace = rtrim($nextToken->getContent(), " \t");
 
-                                if (strlen($nextWhitespace) && "\n" === $nextWhitespace[strlen($nextWhitespace) - 1]) {
-                                    $nextWhitespace = substr($nextWhitespace, 0, -1);
+                                if ('' !== $nextWhitespace) {
+                                    $nextWhitespace = preg_replace(
+                                        sprintf('/%s$/', $this->whitespacesConfig->getLineEnding()),
+                                        '',
+                                        $nextWhitespace,
+                                        1
+                                    );
                                 }
                             }
 
-                            $whitespace = $nextWhitespace."\n".$indent;
+                            $whitespace = $nextWhitespace.$this->whitespacesConfig->getLineEnding().$indent;
 
                             if (!$nextNonWhitespaceNestToken->equals('}')) {
-                                $whitespace .= '    ';
+                                $whitespace .= $this->whitespacesConfig->getIndent();
                             }
                         }
 
@@ -286,7 +418,7 @@ final class BracesFixer extends AbstractFixer
 
             // fix indent near opening brace
             if (isset($tokens[$startBraceIndex + 2]) && $tokens[$startBraceIndex + 2]->equals('}')) {
-                $tokens->ensureWhitespaceAtIndex($startBraceIndex + 1, 0, "\n".$indent);
+                $tokens->ensureWhitespaceAtIndex($startBraceIndex + 1, 0, $this->whitespacesConfig->getLineEnding().$indent);
             } else {
                 $nextToken = $tokens[$startBraceIndex + 1];
                 $nextNonWhitespaceToken = $tokens[$tokens->getNextNonWhitespace($startBraceIndex)];
@@ -295,14 +427,20 @@ final class BracesFixer extends AbstractFixer
                 if (
                     !$nextNonWhitespaceToken->isComment()
                     || !($nextToken->isWhitespace() && $nextToken->isWhitespace(" \t"))
-                    && substr_count($nextToken->getContent(), "\n") === 1 // preserve blank lines
+                    && 1 === substr_count($nextToken->getContent(), "\n") // preserve blank lines
                 ) {
-                    $tokens->ensureWhitespaceAtIndex($startBraceIndex + 1, 0, "\n".$indent.'    ');
+                    $tokens->ensureWhitespaceAtIndex($startBraceIndex + 1, 0, $this->whitespacesConfig->getLineEnding().$indent.$this->whitespacesConfig->getIndent());
                 }
             }
 
             if ($token->isGivenKind($classyTokens) && !$tokensAnalyzer->isAnonymousClass($index)) {
-                $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, "\n".$indent);
+                if (self::LINE_SAME === $this->configuration['position_after_functions_and_oop_constructs'] && !$tokens[$tokens->getPrevNonWhitespace($startBraceIndex)]->isComment()) {
+                    $ensuredWhitespace = ' ';
+                } else {
+                    $ensuredWhitespace = $this->whitespacesConfig->getLineEnding().$indent;
+                }
+
+                $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, $ensuredWhitespace);
             } elseif ($token->isGivenKind(T_FUNCTION) && !$tokensAnalyzer->isLambda($index)) {
                 $closingParenthesisIndex = $tokens->getPrevTokenOfKind($startBraceIndex, array(')'));
                 if (null === $closingParenthesisIndex) {
@@ -315,7 +453,13 @@ final class BracesFixer extends AbstractFixer
                         $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, ' ');
                     }
                 } else {
-                    $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, "\n".$indent);
+                    if (self::LINE_SAME === $this->configuration['position_after_functions_and_oop_constructs'] && !$tokens[$tokens->getPrevNonWhitespace($startBraceIndex)]->isComment()) {
+                        $ensuredWhitespace = ' ';
+                    } else {
+                        $ensuredWhitespace = $this->whitespacesConfig->getLineEnding().$indent;
+                    }
+
+                    $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, $ensuredWhitespace);
                 }
             } else {
                 $tokens->ensureWhitespaceAtIndex($startBraceIndex - 1, 1, ' ');
@@ -343,6 +487,7 @@ final class BracesFixer extends AbstractFixer
             // if Token after parenthesis is { then we do not need to insert brace, but to fix whitespace before it
             if ($tokenAfterParenthesis->equals('{')) {
                 $tokens->ensureWhitespaceAtIndex($parenthesisEndIndex + 1, 0, ' ');
+
                 continue;
             }
 
@@ -379,7 +524,7 @@ final class BracesFixer extends AbstractFixer
             // Declare tokens don't follow the same rules are other control statements
             if ($token->isGivenKind(T_DECLARE)) {
                 $this->fixDeclareStatement($tokens, $index);
-            } elseif ($token->isGivenKind($controlTokens) || $token->isGivenKind(CT_USE_LAMBDA)) {
+            } elseif ($token->isGivenKind($controlTokens) || $token->isGivenKind(CT::T_USE_LAMBDA)) {
                 $nextNonWhitespaceIndex = $tokens->getNextNonWhitespace($index);
 
                 if (!$tokens[$nextNonWhitespaceIndex]->equals(':')) {
@@ -467,7 +612,7 @@ final class BracesFixer extends AbstractFixer
 
             $endIndex = $this->findStatementEnd($tokens, $parenthesisEndIndex);
 
-            if ($nextToken->isGivenKind(array(T_IF, T_TRY))) {
+            if ($nextToken->isGivenKind(array(T_IF, T_TRY, T_DO))) {
                 $openingTokenKind = $nextToken->getId();
 
                 while (true) {
@@ -510,7 +655,7 @@ final class BracesFixer extends AbstractFixer
             }
         }
 
-        throw new \RuntimeException('Statement end not found');
+        throw new \RuntimeException('Statement end not found.');
     }
 
     private function getControlTokens()
@@ -568,6 +713,10 @@ final class BracesFixer extends AbstractFixer
             );
         }
 
+        if ($openingTokenKind === T_DO) {
+            return array(T_WHILE);
+        }
+
         if ($openingTokenKind === T_TRY) {
             $tokens = array(T_CATCH);
             if (defined('T_FINALLY')) {
@@ -602,15 +751,17 @@ final class BracesFixer extends AbstractFixer
         $tokens->removeTrailingWhitespace($index);
 
         $startParenthesisIndex = $tokens->getNextTokenOfKind($index, array('('));
+        $tokens->removeTrailingWhitespace($startParenthesisIndex);
+
         $endParenthesisIndex = $tokens->findBlockEnd(Tokens::BLOCK_TYPE_PARENTHESIS_BRACE, $startParenthesisIndex);
+        $tokens->removeLeadingWhitespace($endParenthesisIndex);
+
         $startBraceIndex = $tokens->getNextTokenOfKind($endParenthesisIndex, array(';', '{'));
         $startBraceToken = $tokens[$startBraceIndex];
 
         if ($startBraceToken->equals('{')) {
             $this->fixSingleLineWhitespaceForDeclare($tokens, $startBraceIndex);
         }
-
-        $this->removeWhitespaceInParenthesis($tokens, $startParenthesisIndex, $endParenthesisIndex);
     }
 
     /**
@@ -634,13 +785,17 @@ final class BracesFixer extends AbstractFixer
      * @param Tokens $tokens
      * @param int    $startParenthesisIndex
      * @param int    $endParenthesisIndex
+     *
+     * @return bool
      */
-    private function removeWhitespaceInParenthesis(Tokens $tokens, $startParenthesisIndex, $endParenthesisIndex)
+    private function isMultilined(Tokens $tokens, $startParenthesisIndex, $endParenthesisIndex)
     {
         for ($i = $startParenthesisIndex; $i < $endParenthesisIndex; ++$i) {
-            if ($tokens[$i]->isWhitespace()) {
-                $tokens[$i]->clear();
+            if (false !== strpos($tokens[$i]->getContent(), "\n")) {
+                return true;
             }
         }
+
+        return false;
     }
 }

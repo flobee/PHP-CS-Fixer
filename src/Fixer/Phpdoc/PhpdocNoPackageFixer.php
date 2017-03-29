@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractProxyFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 
 /**
  * @author Graham Campbell <graham@alt-three.com>
@@ -23,19 +25,34 @@ final class PhpdocNoPackageFixer extends AbstractProxyFixer
     /**
      * {@inheritdoc}
      */
-    protected function createProxyFixer()
+    public function getDefinition()
     {
-        $fixer = new GeneralPhpdocAnnotationRemoveFixer();
-        $fixer->configure(array('package', 'subpackage'));
-
-        return $fixer;
+        return new FixerDefinition(
+            '@package and @subpackage annotations should be omitted from phpdocs.',
+            array(
+                new CodeSample(
+                    '<?php
+/**
+ * @internal
+ * @package Foo
+ * subpackage Bar
+ */
+class Baz
+{
+}'
+                ),
+            )
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createProxyFixer()
     {
-        return '@package and @subpackage annotations should be omitted from phpdocs.';
+        $fixer = new GeneralPhpdocAnnotationRemoveFixer();
+        $fixer->configure(array('annotations' => array('package', 'subpackage')));
+
+        return $fixer;
     }
 }

@@ -22,17 +22,48 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class PhpUnitDedicateAssertFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideInternalTypeMethods
      */
     public function testInternalTypeMethods($expected, $input = null)
     {
+        $this->doTest($expected, $input);
+
+        $defaultFunctions = array(
+            'array_key_exists',
+            'empty',
+            'file_exists',
+            'is_infinite',
+            'is_nan',
+            'is_null',
+            'is_array',
+            'is_bool',
+            'is_boolean',
+            'is_callable',
+            'is_double',
+            'is_float',
+            'is_int',
+            'is_integer',
+            'is_long',
+            'is_numeric',
+            'is_object',
+            'is_real',
+            'is_resource',
+            'is_scalar',
+            'is_string',
+        );
+
+        $this->fixer->configure(array('functions' => $defaultFunctions));
         $this->doTest($expected, $input);
     }
 
     public function provideInternalTypeMethods()
     {
         $cases = array();
-        foreach (array('array', 'bool', 'boolean', 'callable', 'double', 'float', 'int', 'integer', 'long', '​numeric', 'object', '​resource', 'real', 'scalar', 'string') as $type) {
+
+        foreach (array('array', 'bool', 'boolean', 'callable', 'double', 'float', 'int', 'integer', 'long', 'numeric', 'object', 'resource', 'real', 'scalar', 'string') as $type) {
             $cases[] = array(
                 sprintf('<?php $this->assertInternalType(\'%s\', $a);', $type),
                 sprintf('<?php $this->assertTrue(is_%s($a));', $type),
@@ -58,6 +89,9 @@ final class PhpUnitDedicateAssertFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideDedicatedAssertsCases
      */
     public function testDedicatedAsserts($expected, $input = null)
@@ -148,6 +182,8 @@ final class PhpUnitDedicateAssertFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string $expected
+     *
      * @dataProvider provideNotFixCases
      */
     public function testNotFix($expected)
@@ -177,10 +213,13 @@ final class PhpUnitDedicateAssertFixerTest extends AbstractFixerTestCase
         );
     }
 
-    public function testConfig()
+    /**
+     * @group legacy
+     * @expectedDeprecation Passing "functions" at the root of the configuration is deprecated and will not be supported in 3.0, use "functions" => array(...) option instead.
+     */
+    public function testLegacyConfig()
     {
-        $fixer = $this->getFixer();
-        $fixer->configure(array('file_exists'));
+        $this->fixer->configure(array('file_exists'));
         $this->doTest(
             '<?php
                     $this->assertFileExists($a);
@@ -189,18 +228,32 @@ final class PhpUnitDedicateAssertFixerTest extends AbstractFixerTestCase
             '<?php
                     $this->assertTrue(file_exists($a));
                     $this->assertTrue(is_infinite($a));
-            ',
-            null,
-            $fixer
+            '
         );
     }
 
-    /**
-     * @expectedException \PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException
-     * @expectedExceptionMessageRegExp /^\[php_unit_dedicate_assert\] Unknown configuration method "_unknown_".$/
-     */
+    public function testConfig()
+    {
+        $this->fixer->configure(array('functions' => array('file_exists')));
+        $this->doTest(
+            '<?php
+                    $this->assertFileExists($a);
+                    $this->assertTrue(is_infinite($a));
+            ',
+            '<?php
+                    $this->assertTrue(file_exists($a));
+                    $this->assertTrue(is_infinite($a));
+            '
+        );
+    }
+
     public function testInvalidConfig()
     {
-        $this->getFixer()->configure(array('_unknown_'));
+        $this->setExpectedExceptionRegExp(
+            'PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException',
+            '/^\[php_unit_dedicate_assert\] Invalid configuration: The option "functions" .*\.$/'
+        );
+
+        $this->fixer->configure(array('functions' => array('_unknown_')));
     }
 }

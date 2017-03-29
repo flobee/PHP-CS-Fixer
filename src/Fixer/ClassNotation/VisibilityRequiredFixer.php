@@ -13,17 +13,63 @@
 namespace PhpCsFixer\Fixer\ClassNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverRootless;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerConfiguration\FixerOptionValidatorGenerator;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\FixerDefinition\VersionSpecification;
+use PhpCsFixer\FixerDefinition\VersionSpecificCodeSample;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Tokenizer\TokensAnalyzer;
+use Symfony\Component\OptionsResolver\Exception\InvalidOptionsException;
+use Symfony\Component\OptionsResolver\Options;
 
 /**
  * Fixer for rules defined in PSR2 ¶4.3, ¶4.5.
  *
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
+ * @author SpacePossum
  */
-final class VisibilityRequiredFixer extends AbstractFixer
+final class VisibilityRequiredFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Visibility MUST be declared on all properties and methods; abstract and final MUST be declared before the visibility; static MUST be declared after the visibility.',
+            array(
+                new CodeSample(
+'<?php
+class Sample
+{
+    var $a;
+    static protected $var_foo2;
+
+    function A()
+    {
+    }
+}
+'
+                ),
+                new VersionSpecificCodeSample(
+'<?php
+class Sample
+{
+    const SAMPLE = 1;
+}
+',
+                    new VersionSpecification(70100),
+                    array('elements' => array('const'))
+                ),
+            )
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -35,26 +81,29 @@ final class VisibilityRequiredFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $tokensAnalyzer = new TokensAnalyzer($tokens);
         $elements = $tokensAnalyzer->getClassyElements();
 
         foreach (array_reverse($elements, true) as $index => $element) {
-            if ('method' === $element['type']) {
-                $this->overrideAttribs($tokens, $index, $this->grabAttribsBeforeMethodToken($tokens, $index));
+            if (!in_array($element['type'], $this->configuration['elements'], true)) {
+                continue;
+            }
 
-                // force whitespace between function keyword and function name to be single space char
-                $afterToken = $tokens[++$index];
-                if ($afterToken->isWhitespace()) {
-                    $afterToken->setContent(' ');
-                }
-            } elseif ('property' === $element['type']) {
-                $prevIndex = $tokens->getPrevTokenOfKind($index, array(';', ',', '{'));
+            switch ($element['type']) {
+                case 'method':
+                    $this->fixMethodVisibility($tokens, $index);
 
-                if (null === $prevIndex || !$tokens[$prevIndex]->equals(',')) {
-                    $this->overrideAttribs($tokens, $index, $this->grabAttribsBeforePropertyToken($tokens, $index));
-                }
+                    break;
+                case 'property':
+                    $this->fixPropertyVisibility($tokens, $index);
+
+                    break;
+                case 'const':
+                    $this->fixConstVisibility($tokens, $index);
+
+                    break;
             }
         }
     }
@@ -62,43 +111,71 @@ final class VisibilityRequiredFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'Visibility MUST be declared on all properties and methods; abstract and final MUST be declared before the visibility; static MUST be declared after the visibility.';
+        $generator = new FixerOptionValidatorGenerator();
+
+        $elements = new FixerOptionBuilder('elements', 'The structural elements to fix (PHP >= 7.1 required for `const`).');
+        $elements = $elements
+            ->setAllowedTypes(array('array'))
+            ->setAllowedValues(array(
+                $generator->allowedValueIsSubsetOf(array('property', 'method', 'const')),
+            ))
+            ->setNormalizer(function (Options $options, $value) {
+                if (PHP_VERSION_ID < 70100 && in_array('const', $value, true)) {
+                    throw new InvalidOptionsException('"const" option can only be enabled with PHP 7.1+.');
+                }
+
+                return $value;
+            })
+            ->setDefault(array('property', 'method'))
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolverRootless('elements', array($elements));
     }
 
     /**
-     * Apply token attributes.
-     *
-     * Token at given index is prepended by attributes.
-     *
-     * @param Tokens $tokens      Tokens collection
-     * @param int    $memberIndex token index
-     * @param array  $attribs     map of grabbed attributes, key is attribute name and value is array of index and clone of Token
+     * @param Tokens $tokens
+     * @param int    $index
      */
-    private function overrideAttribs(Tokens $tokens, $memberIndex, array $attribs)
+    private function fixMethodVisibility(Tokens $tokens, $index)
     {
-        $toOverride = array();
-        $firstAttribIndex = $memberIndex;
+        $this->overrideAttribs($tokens, $index, $this->grabAttribsBeforeMethodToken($tokens, $index));
 
-        foreach ($attribs as $attrib) {
-            if (null === $attrib) {
-                continue;
-            }
+        // force whitespace between function keyword and function name to be single space char
+        $afterToken = $tokens[++$index];
+        if ($afterToken->isWhitespace()) {
+            $afterToken->setContent(' ');
+        }
+    }
 
-            if (null !== $attrib['index']) {
-                $firstAttribIndex = min($firstAttribIndex, $attrib['index']);
-            }
+    /**
+     * @param Tokens $tokens
+     * @param int    $index
+     */
+    private function fixPropertyVisibility(Tokens $tokens, $index)
+    {
+        $prevIndex = $tokens->getPrevTokenOfKind($index, array(';', ',', '{'));
 
-            if (!$attrib['token']->isGivenKind(T_VAR) && '' !== $attrib['token']->getContent()) {
-                $toOverride[] = $attrib['token'];
-                $toOverride[] = new Token(array(T_WHITESPACE, ' '));
-            }
+        if (null === $prevIndex || !$tokens[$prevIndex]->equals(',')) {
+            $this->overrideAttribs($tokens, $index, $this->grabAttribsBeforePropertyToken($tokens, $index));
+        }
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @param int    $index
+     */
+    private function fixConstVisibility(Tokens $tokens, $index)
+    {
+        $prev = $tokens->getPrevMeaningfulToken($index);
+        if ($tokens[$prev]->isGivenKind(array(T_PRIVATE, T_PROTECTED, T_PUBLIC))) {
+            return;
         }
 
-        if (!empty($toOverride)) {
-            $tokens->overrideRange($firstAttribIndex, $memberIndex - 1, $toOverride);
-        }
+        $tokens->insertAt($index, new Token(array(T_WHITESPACE, ' ')));
+        $tokens->insertAt($index, new Token(array(T_PUBLIC, 'public')));
     }
 
     /**
@@ -133,6 +210,40 @@ final class VisibilityRequiredFixer extends AbstractFixer
                 'static' => null,
             )
         );
+    }
+
+    /**
+     * Apply token attributes.
+     *
+     * Token at given index is prepended by attributes.
+     *
+     * @param Tokens $tokens      Tokens collection
+     * @param int    $memberIndex token index
+     * @param array  $attribs     map of grabbed attributes, key is attribute name and value is array of index and clone of Token
+     */
+    private function overrideAttribs(Tokens $tokens, $memberIndex, array $attribs)
+    {
+        $toOverride = array();
+        $firstAttribIndex = $memberIndex;
+
+        foreach ($attribs as $attrib) {
+            if (null === $attrib) {
+                continue;
+            }
+
+            if (null !== $attrib['index']) {
+                $firstAttribIndex = min($firstAttribIndex, $attrib['index']);
+            }
+
+            if (!$attrib['token']->isGivenKind(T_VAR) && '' !== $attrib['token']->getContent()) {
+                $toOverride[] = $attrib['token'];
+                $toOverride[] = new Token(array(T_WHITESPACE, ' '));
+            }
+        }
+
+        if (!empty($toOverride)) {
+            $tokens->overrideRange($firstAttribIndex, $memberIndex - 1, $toOverride);
+        }
     }
 
     /**

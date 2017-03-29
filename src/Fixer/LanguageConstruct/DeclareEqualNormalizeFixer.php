@@ -13,13 +13,46 @@
 namespace PhpCsFixer\Fixer\LanguageConstruct;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolver;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
+ * @author SpacePossum
  */
-final class DeclareEqualNormalizeFixer extends AbstractFixer
+final class DeclareEqualNormalizeFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
+    /**
+     * @var string
+     */
+    private $callback;
+
+    /**
+     * {@inheritdoc}
+     */
+    public function configure(array $configuration = null)
+    {
+        parent::configure($configuration);
+
+        $this->callback = 'none' === $this->configuration['space'] ? 'removeWhitespaceAroundToken' : 'ensureWhitespaceAroundToken';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Equal sign in declare statement should be surrounded by spaces or not following configuration.',
+            array(new CodeSample("<?php\ndeclare(ticks =  1);"))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,26 +64,61 @@ final class DeclareEqualNormalizeFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        $count = $tokens->count();
-
-        for ($index = 0; $index < $count; ++$index) {
+        $callback = $this->callback;
+        for ($index = 0, $count = $tokens->count(); $index < $count - 6; ++$index) {
             if (!$tokens[$index]->isGivenKind(T_DECLARE)) {
                 continue;
             }
 
             while (!$tokens[++$index]->equals('='));
-            $tokens->removeLeadingWhitespace($index);
-            $tokens->removeTrailingWhitespace($index);
+
+            $this->$callback($tokens, $index);
         }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'Equal sign in declare statement should not be surrounded by spaces.';
+        $space = new FixerOptionBuilder('space', 'Spacing to apply around the equal sign.');
+        $space = $space
+            ->setAllowedValues(array('single', 'none'))
+            ->setDefault('none')
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolver(array($space));
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @param int    $index  of `=` token
+     */
+    private function ensureWhitespaceAroundToken(Tokens $tokens, $index)
+    {
+        if ($tokens[$index + 1]->isWhitespace()) {
+            $tokens[$index + 1]->setContent(' ');
+        } else {
+            $tokens->insertAt($index + 1, new Token(array(T_WHITESPACE, ' ')));
+        }
+
+        if ($tokens[$index - 1]->isWhitespace()) {
+            $tokens[$index - 1]->setContent(' ');
+        } else {
+            $tokens->insertAt($index, new Token(array(T_WHITESPACE, ' ')));
+        }
+    }
+
+    /**
+     * @param Tokens $tokens
+     * @param int    $index  of `=` token
+     */
+    private function removeWhitespaceAroundToken(Tokens $tokens, $index)
+    {
+        $tokens->removeLeadingWhitespace($index);
+        $tokens->removeTrailingWhitespace($index);
     }
 }

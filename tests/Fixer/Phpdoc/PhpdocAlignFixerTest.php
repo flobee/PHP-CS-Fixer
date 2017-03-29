@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\Phpdoc;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @internal
@@ -440,5 +441,156 @@ EOF;
 EOF;
 
         $this->doTest($expected, $input);
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\n\t/**\r\n\t * @type Type This is a variable.\r\n\t */",
+                "<?php\r\n\t/**\r\n\t * @type   Type   This is a variable.\r\n\t */",
+            ),
+            array(
+                "<?php\r\n/**\r\n * @param int    \$limit\r\n * @param string \$more\r\n *\r\n * @return array\r\n */",
+                "<?php\r\n/**\r\n * @param   int       \$limit\r\n * @param   string       \$more\r\n *\r\n * @return array\r\n */",
+            ),
+        );
+    }
+
+    public function testCanFixBadFormatted()
+    {
+        $expected = "<?php\n    /**\n     * @var Foo */\n";
+
+        $this->doTest($expected);
+    }
+
+    public function testFixUnicode()
+    {
+        $expected = <<<'EOF'
+<?php
+    /**
+     * Method test.
+     *
+     * @param int      $foobar Description
+     * @param string   $foo    Description
+     * @param mixed    $bar    Description word_with_ą
+     * @param int|null $test   Description
+     */
+    $a = 1;
+
+    /**
+     * @return string
+     * @SuppressWarnings(PHPMD.UnusedLocalVariable) word_with_ą
+     */
+    $b = 1;
+EOF;
+
+        $input = <<<'EOF'
+<?php
+    /**
+     * Method test.
+     *
+     * @param int    $foobar Description
+     * @param string $foo    Description
+     * @param mixed $bar Description word_with_ą
+     * @param int|null $test Description
+     */
+    $a = 1;
+
+    /**
+     * @return string
+     *   @SuppressWarnings(PHPMD.UnusedLocalVariable) word_with_ą
+     */
+    $b = 1;
+EOF;
+
+        $this->doTest($expected, $input);
+    }
+
+    /**
+     * @param string $expected
+     * @param string $input
+     *
+     * @requires PHP 5.6
+     * @dataProvider provideVariadicCases
+     */
+    public function testVariadicParams($expected, $input)
+    {
+        $this->doTest($expected, $input);
+    }
+
+    public function provideVariadicCases()
+    {
+        return array(
+            array(
+                '<?php
+final class Sample
+{
+    /**
+     * @param int[] $a    A
+     * @param int   &$b   B
+     * @param array ...$c C
+     */
+    public function sample2($a, &$b, ...$c)
+    {
+    }
+}
+',
+            '<?php
+final class Sample
+{
+    /**
+     * @param int[]       $a  A
+     * @param int          &$b B
+     * @param array ...$c    C
+     */
+    public function sample2($a, &$b, ...$c)
+    {
+    }
+}
+',
+            ),
+                        array(
+                '<?php
+final class Sample
+{
+    /**
+     * @param int     $a
+     * @param int     $b
+     * @param array[] ...$c
+     */
+    public function sample2($a, $b, ...$c)
+    {
+    }
+}
+',
+            '<?php
+final class Sample
+{
+    /**
+     * @param int       $a
+     * @param int    $b
+     * @param array[]      ...$c
+     */
+    public function sample2($a, $b, ...$c)
+    {
+    }
+}
+',
+            ),
+        );
     }
 }

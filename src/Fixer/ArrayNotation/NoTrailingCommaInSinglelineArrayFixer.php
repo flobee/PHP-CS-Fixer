@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\ArrayNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Tokenizer\TokensAnalyzer;
 
@@ -25,15 +28,26 @@ final class NoTrailingCommaInSinglelineArrayFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function isCandidate(Tokens $tokens)
+    public function getDefinition()
     {
-        return $tokens->isAnyTokenKindsFound(array(T_ARRAY, CT_ARRAY_SQUARE_BRACE_OPEN));
+        return new FixerDefinition(
+            'PHP single-line arrays should not have trailing comma.',
+            array(new CodeSample("<?php\n\$a = array('sample',  );"))
+        );
     }
 
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function isCandidate(Tokens $tokens)
+    {
+        return $tokens->isAnyTokenKindsFound(array(T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $tokensAnalyzer = new TokensAnalyzer($tokens);
 
@@ -45,13 +59,9 @@ final class NoTrailingCommaInSinglelineArrayFixer extends AbstractFixer
     }
 
     /**
-     * {@inheritdoc}
+     * @param Tokens $tokens
+     * @param int    $index
      */
-    public function getDescription()
-    {
-        return 'PHP single-line arrays should not have trailing comma.';
-    }
-
     private function fixArray(Tokens $tokens, $index)
     {
         $tokensAnalyzer = new TokensAnalyzer($tokens);

@@ -13,11 +13,36 @@
 namespace PhpCsFixer\Fixer\CastNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
+/**
+ * @author SpacePossum
+ */
 final class NoShortBoolCastFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run before the CastSpacesFixer
+        return -9;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Short cast `bool` using double exclamation mark should not be used.',
+            array(new CodeSample("<?php\n\$a = !!\$b;"))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -29,7 +54,7 @@ final class NoShortBoolCastFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         for ($index = count($tokens) - 1; $index > 1; --$index) {
             if ($tokens[$index]->equals('!')) {
@@ -38,6 +63,12 @@ final class NoShortBoolCastFixer extends AbstractFixer
         }
     }
 
+    /**
+     * @param Tokens $tokens
+     * @param int    $index
+     *
+     * @return int
+     */
     private function fixShortCast(Tokens $tokens, $index)
     {
         for ($i = $index - 1; $i > 1; --$i) {
@@ -54,6 +85,11 @@ final class NoShortBoolCastFixer extends AbstractFixer
         return $i;
     }
 
+    /**
+     * @param Tokens $tokens
+     * @param int    $start
+     * @param int    $end
+     */
     private function fixShortCastToBoolCast(Tokens $tokens, $start, $end)
     {
         for (; $start <= $end; ++$start) {
@@ -66,22 +102,5 @@ final class NoShortBoolCastFixer extends AbstractFixer
         }
 
         $tokens->insertAt($start, new Token(array(T_BOOL_CAST, '(bool)')));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Short cast bool using double exclamation mark should not be used.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run before the CastSpacesFixer
-        return -9;
     }
 }

@@ -30,52 +30,94 @@ final class NoUnneededControlParenthesesFixerTest extends AbstractFixerTestCase
         parent::setUpBeforeClass();
 
         $fixer = new NoUnneededControlParenthesesFixer();
-        $controlStatementsProperty = new \ReflectionProperty($fixer, 'controlStatements');
-        $controlStatementsProperty->setAccessible(true);
-        self::$defaultStatements = $controlStatementsProperty->getValue($fixer);
+        foreach ($fixer->getConfigurationDefinition()->getOptions() as $option) {
+            if ('statements' === $option->getName()) {
+                self::$defaultStatements = $option->getDefault();
+                break;
+            }
+        }
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
      * @dataProvider provideFixCases
      */
     public function testFix($expected, $input = null, $fixStatement = null)
     {
-        $fixer = $this->getFixer();
+        $this->fixerTest($expected, $input, $fixStatement);
+    }
 
-        // PHP <5.5 BC
-        if (version_compare(PHP_VERSION, '5.5', '<') && false !== strpos($input, 'yield')) {
-            $input = null;
-        }
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
+     * @group legacy
+     * @dataProvider provideFixCases
+     * @expectedDeprecation Passing "statements" at the root of the configuration is deprecated and will not be supported in 3.0, use "statements" => array(...) option instead.
+     */
+    public function testLegacyFix($expected, $input = null, $fixStatement = null)
+    {
+        $this->fixerTest($expected, $input, $fixStatement, true);
+    }
 
-        // Default config. Fixes all statements.
-        $fixer->configure(self::$defaultStatements);
-        $this->doTest($expected, $input, null, $fixer);
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
+     * @dataProvider provideFixCases55
+     * @requires PHP 5.5
+     */
+    public function testFix55($expected, $input = null, $fixStatement = null)
+    {
+        $this->fixerTest($expected, $input, $fixStatement);
+    }
 
-        // Empty array config. Should not fix anything.
-        $fixer->configure(array());
-        $this->doTest($expected, null, null, $fixer);
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
+     * @group legacy
+     * @dataProvider provideFixCases55
+     * @expectedDeprecation Passing "statements" at the root of the configuration is deprecated and will not be supported in 3.0, use "statements" => array(...) option instead.
+     * @requires PHP 5.5
+     */
+    public function testLegacyFix55($expected, $input = null, $fixStatement = null)
+    {
+        $this->fixerTest($expected, $input, $fixStatement, true);
+    }
 
-        // Test with only one statement
-        foreach (self::$defaultStatements as $statement) {
-            $withInput = false;
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
+     * @dataProvider provideFixCases70
+     * @requires PHP 7.0
+     */
+    public function testFix70($expected, $input = null, $fixStatement = null)
+    {
+        $this->fixerTest($expected, $input, $fixStatement);
+    }
 
-            if ($input && (!$fixStatement || $fixStatement === $statement)) {
-                foreach (explode('_', $statement) as $singleStatement) {
-                    if (false !== strpos($input, $singleStatement)) {
-                        $withInput = true;
-                        break;
-                    }
-                }
-            }
-
-            $fixer->configure(array($statement));
-            $this->doTest(
-                $expected,
-                $withInput ? $input : null,
-                null,
-                $fixer
-            );
-        }
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     *
+     * @group legacy
+     * @dataProvider provideFixCases70
+     * @expectedDeprecation Passing "statements" at the root of the configuration is deprecated and will not be supported in 3.0, use "statements" => array(...) option instead.
+     * @requires PHP 7.0
+     */
+    public function testLegacyFix70($expected, $input = null, $fixStatement = null)
+    {
+        $this->fixerTest($expected, $input, $fixStatement, true);
     }
 
     public function provideFixCases()
@@ -102,48 +144,6 @@ final class NoUnneededControlParenthesesFixerTest extends AbstractFixerTestCase
             array(
                 '<?php while ($x) { while ($y) { continue 2; } }',
                 '<?php while ($x) { while ($y) { continue(2); } }',
-            ),
-            array(
-                '<?php
-                function foo() { yield "prod"; }
-                ',
-            ),
-            array(
-                '<?php
-                function foo() { yield (1 + 2) * 10; }
-                ',
-            ),
-            array(
-                '<?php
-                function foo() { yield (1 + 2) * 10; }
-                ',
-                '<?php
-                function foo() { yield ((1 + 2) * 10); }
-                ',
-            ),
-            array(
-                '<?php
-                function foo() { yield "prod"; }
-                ',
-                '<?php
-                function foo() { yield ("prod"); }
-                ',
-            ),
-            array(
-                '<?php
-                function foo() { yield 2; }
-                ',
-                '<?php
-                function foo() { yield(2); }
-                ',
-            ),
-            array(
-                '<?php
-                function foo() { $a = (yield $x); }
-                ',
-                '<?php
-                function foo() { $a = (yield($x)); }
-                ',
             ),
             array(
                 '<?php
@@ -313,6 +313,14 @@ final class NoUnneededControlParenthesesFixerTest extends AbstractFixerTestCase
             ),
             array(
                 '<?php
+                return 2?>
+                ',
+                '<?php
+                return(2)?>
+                ',
+            ),
+            array(
+                '<?php
                 switch ($a) {
                     case "prod":
                         break;
@@ -428,5 +436,103 @@ final class NoUnneededControlParenthesesFixerTest extends AbstractFixerTestCase
                 'switch_case',
             ),
         );
+    }
+
+    public function provideFixCases55()
+    {
+        return array(
+            array(
+                '<?php
+                function foo() { yield "prod"; }
+                ',
+            ),
+            array(
+                '<?php
+                function foo() { yield (1 + 2) * 10; }
+                ',
+            ),
+            array(
+                '<?php
+                function foo() { yield (1 + 2) * 10; }
+                ',
+                '<?php
+                function foo() { yield ((1 + 2) * 10); }
+                ',
+            ),
+            array(
+                '<?php
+                function foo() { yield "prod"; }
+                ',
+                '<?php
+                function foo() { yield ("prod"); }
+                ',
+            ),
+            array(
+                '<?php
+                function foo() { yield 2; }
+                ',
+                '<?php
+                function foo() { yield(2); }
+                ',
+            ),
+            array(
+                '<?php
+                function foo() { $a = (yield $x); }
+                ',
+                '<?php
+                function foo() { $a = (yield($x)); }
+                ',
+            ),
+        );
+    }
+
+    public function provideFixCases70()
+    {
+        return array(
+            array(
+                '<?php
+                $var = clone ($obj1->getSubject() ?? $obj2);
+                ',
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     * @param null|string $fixStatement
+     * @param bool        $legacy
+     */
+    private function fixerTest($expected, $input = null, $fixStatement = null, $legacy = false)
+    {
+        // Default config. Fixes all statements.
+        $this->doTest($expected, $input);
+
+        $this->fixer->configure($legacy ? self::$defaultStatements : array('statements' => self::$defaultStatements));
+        $this->doTest($expected, $input);
+
+        // Empty array config. Should not fix anything.
+        $this->fixer->configure(array());
+        $this->doTest($expected, null);
+
+        // Test with only one statement
+        foreach (self::$defaultStatements as $statement) {
+            $withInput = false;
+
+            if ($input && (!$fixStatement || $fixStatement === $statement)) {
+                foreach (explode('_', $statement) as $singleStatement) {
+                    if (false !== strpos($input, $singleStatement)) {
+                        $withInput = true;
+                        break;
+                    }
+                }
+            }
+
+            $this->fixer->configure($legacy ? array($statement) : array('statements' => array($statement)));
+            $this->doTest(
+                $expected,
+                $withInput ? $input : null
+            );
+        }
     }
 }

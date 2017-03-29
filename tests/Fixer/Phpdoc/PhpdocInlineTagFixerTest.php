@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class PhpdocInlineTagFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideTestFixInlineDocCases
      */
     public function testFixInlineDoc($expected, $input = null)
@@ -142,7 +145,6 @@ final class PhpdocInlineTagFixerTest extends AbstractFixerTestCase
      * inheritdocs
      */
 ',
-
         );
 
         // invalid syntax

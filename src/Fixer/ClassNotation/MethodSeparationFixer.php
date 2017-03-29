@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\ClassNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Tokenizer\TokensAnalyzer;
@@ -25,7 +28,7 @@ use SplFileInfo;
  *
  * @author SpacePossum
  */
-final class MethodSeparationFixer extends AbstractFixer
+final class MethodSeparationFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
     /**
      * {@inheritdoc}
@@ -38,7 +41,42 @@ final class MethodSeparationFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Methods must be separated with one blank line.',
+            array(
+                new CodeSample(
+                    '<?php
+final class Sample
+{
+    protected function foo()
+    {
+    }
+    protected function bar()
+    {
+    }
+}
+'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // Must run before BracesFixer and IndentationTypeFixer fixers because this fixer
+        // might add line breaks to the code without indenting.
+        return 55;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(SplFileInfo $file, Tokens $tokens)
     {
         $tokensAnalyzer = new TokensAnalyzer($tokens);
 
@@ -60,24 +98,6 @@ final class MethodSeparationFixer extends AbstractFixer
                 $this->fixClass($tokens, $tokensAnalyzer, $classStart, $classEnd);
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Methods must be separated with one blank line.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // Must run before BracesFixer and NoTabIndentationFixer fixers because this fixer
-        // might add line breaks to the code without indenting.
-        return 55;
     }
 
     /**
@@ -219,10 +239,12 @@ final class MethodSeparationFixer extends AbstractFixer
      */
     private function correctLineBreaks(Tokens $tokens, $startIndex, $endIndex, $reqLineCount = 2)
     {
+        $lineEnding = $this->whitespacesConfig->getLineEnding();
+
         ++$startIndex;
         $numbOfWhiteTokens = $endIndex - $startIndex;
         if (0 === $numbOfWhiteTokens) {
-            $tokens->insertAt($startIndex, new Token(array(T_WHITESPACE, str_repeat("\n", $reqLineCount))));
+            $tokens->insertAt($startIndex, new Token(array(T_WHITESPACE, str_repeat($lineEnding, $reqLineCount))));
 
             return;
         }
@@ -233,14 +255,14 @@ final class MethodSeparationFixer extends AbstractFixer
         }
 
         if ($lineBreakCount < $reqLineCount) {
-            $tokens[$startIndex]->setContent(str_repeat("\n", $reqLineCount - $lineBreakCount).$tokens[$startIndex]->getContent());
+            $tokens[$startIndex]->setContent(str_repeat($lineEnding, $reqLineCount - $lineBreakCount).$tokens[$startIndex]->getContent());
 
             return;
         }
 
         // $lineCount = > $reqLineCount : check the one Token case first since this one will be true most of the time
         if (1 === $numbOfWhiteTokens) {
-            $tokens[$startIndex]->setContent(preg_replace('/[\r\n]/', '', $tokens[$startIndex]->getContent(), $lineBreakCount - $reqLineCount));
+            $tokens[$startIndex]->setContent(preg_replace('/\r\n|\n/', '', $tokens[$startIndex]->getContent(), $lineBreakCount - $reqLineCount));
 
             return;
         }
@@ -250,7 +272,7 @@ final class MethodSeparationFixer extends AbstractFixer
         for ($i = $startIndex; $i < $endIndex && $toReplaceCount > 0; ++$i) {
             $tokenLineCount = substr_count($tokens[$i]->getContent(), "\n");
             if ($tokenLineCount > 0) {
-                $tokens[$i]->setContent(preg_replace('/[\r\n]/', '', $tokens[$i]->getContent(), min($toReplaceCount, $tokenLineCount)));
+                $tokens[$i]->setContent(preg_replace('/\r\n|\n/', '', $tokens[$i]->getContent(), min($toReplaceCount, $tokenLineCount)));
                 $toReplaceCount -= $tokenLineCount;
             }
         }

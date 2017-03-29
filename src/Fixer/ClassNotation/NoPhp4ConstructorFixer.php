@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\ClassNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Tokenizer\TokensAnalyzer;
@@ -22,6 +24,36 @@ use PhpCsFixer\Tokenizer\TokensAnalyzer;
  */
 final class NoPhp4ConstructorFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Convert PHP4-style constructors to `__construct`.',
+            array(
+               new CodeSample('<?php
+class Foo
+{
+    public function Foo($bar)
+    {
+    }
+}'),
+            ),
+            null,
+            'Risky when old style constructor being fixed is overridden or overrides parent one.'
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // must run before OrderedClassElementsFixer
+        return 75;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -41,7 +73,7 @@ final class NoPhp4ConstructorFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $tokensAnalyzer = new TokensAnalyzer($tokens);
         $classes = array_keys($tokens->findGivenKind(T_CLASS));
@@ -93,31 +125,6 @@ final class NoPhp4ConstructorFixer extends AbstractFixer
             $this->fixConstructor($tokens, $className, $classStart, $classEnd);
             $this->fixParent($tokens, $classStart, $classEnd);
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return 'no_php4_constructor';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Convert PHP4-style constructors to __construct.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // must run before OrderedClassElementsFixer
-        return 75;
     }
 
     /**
@@ -344,7 +351,7 @@ final class NoPhp4ConstructorFixer extends AbstractFixer
         ), $startIndex, $endIndex, false);
 
         if (null === $function) {
-            return;
+            return null;
         }
 
         // keep only the indexes

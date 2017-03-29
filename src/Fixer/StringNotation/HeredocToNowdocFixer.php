@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\StringNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -24,6 +26,26 @@ final class HeredocToNowdocFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Convert `heredoc` to `nowdoc` where possible.',
+            array(
+                new CodeSample(
+<<<'EOF'
+<?php $a = <<<"TEST"
+Foo
+TEST;
+
+EOF
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_START_HEREDOC);
@@ -32,7 +54,7 @@ final class HeredocToNowdocFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $index => $token) {
             if (!$token->isGivenKind(T_START_HEREDOC) || false !== strpos($token->getContent(), "'")) {
@@ -61,14 +83,6 @@ final class HeredocToNowdocFixer extends AbstractFixer
             $content = str_replace(array('\\\\', '\\$'), array('\\', '$'), $content);
             $tokens[$index + 1]->setContent($content);
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Convert heredoc to nowdoc if possible.';
     }
 
     /**

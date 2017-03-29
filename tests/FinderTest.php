@@ -10,7 +10,7 @@
  * with this source code in the file LICENSE.
  */
 
-namespace PhpCsFixer\Tests\Finder;
+namespace PhpCsFixer\Tests;
 
 use PhpCsFixer\Finder;
 
@@ -19,12 +19,13 @@ use PhpCsFixer\Finder;
  */
 final class FinderTest extends \PHPUnit_Framework_TestCase
 {
-    /**
-     * @expectedException              \LogicException
-     * @expectedExceptionMessageRegExp /^You must call (?:the in\(\) method)|(?:one of in\(\) or append\(\)) methods before iterating over a Finder\.$/
-     */
     public function testThatDefaultFinderDoesNotSpecifyAnyDirectory()
     {
+        $this->setExpectedExceptionRegExp(
+            'LogicException',
+            '/^You must call (?:the in\(\) method)|(?:one of in\(\) or append\(\)) methods before iterating over a Finder\.$/'
+        );
+
         $finder = Finder::create();
         $finder->getIterator();
     }

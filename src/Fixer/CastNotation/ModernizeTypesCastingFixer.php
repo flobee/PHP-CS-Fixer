@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\CastNotation;
 
 use PhpCsFixer\AbstractFunctionReferenceFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -24,6 +26,27 @@ final class ModernizeTypesCastingFixer extends AbstractFunctionReferenceFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Replaces `intval`, `floatval`, `doubleval`, `strval` and `boolval` function calls with according type casting operator.',
+            array(new CodeSample(
+'<?php
+    $a = intval($b);
+    $a = floatval($b);
+    $a = doubleval($b);
+    $a = strval ($b);
+    $a = boolval($b);
+'),
+            ),
+            null,
+            'Risky if any of the functions `intval`, `floatval`, `doubleval`, `strval` or `boolval` are overridden.'
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_STRING);
@@ -32,7 +55,7 @@ final class ModernizeTypesCastingFixer extends AbstractFunctionReferenceFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         // replacement patterns
         static $replacement = array(
@@ -58,12 +81,9 @@ final class ModernizeTypesCastingFixer extends AbstractFunctionReferenceFixer
                 // analysing cursor shift
                 $currIndex = $openParenthesis;
 
-                // special case: intval with 2 parameters shall not be processed (base conversion)
-                if ('intval' === $functionIdentity) {
-                    $parametersCount = $this->countArguments($tokens, $openParenthesis, $closeParenthesis);
-                    if ($parametersCount > 1) {
-                        continue;
-                    }
+                // indicator that the function is overriden
+                if (1 !== $this->countArguments($tokens, $openParenthesis, $closeParenthesis)) {
+                    continue;
                 }
 
                 // check if something complex passed as an argument and preserve parenthesises then
@@ -90,6 +110,7 @@ final class ModernizeTypesCastingFixer extends AbstractFunctionReferenceFixer
                     new Token($newToken),
                     new Token(array(T_WHITESPACE, ' ')),
                 );
+
                 if (!$preserveParenthesises) {
                     // closing parenthesis removed with leading spaces
                     $tokens->removeLeadingWhitespace($closeParenthesis);
@@ -110,13 +131,5 @@ final class ModernizeTypesCastingFixer extends AbstractFunctionReferenceFixer
                 $currIndex = $functionName;
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Replaces intval, floatval, doubleval, strval, boolval functions calls with according type casting operator.';
     }
 }

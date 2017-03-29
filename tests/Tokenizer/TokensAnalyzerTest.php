@@ -49,7 +49,7 @@ class Foo
             echo $arg . ' ' . $message;
         };
         $example('hello');
-    }
+    }function A(){}
 }
 
 function test(){}
@@ -65,7 +65,7 @@ PHP;
         $tokensAnalyzer = new TokensAnalyzer($tokens);
         $elements = array_values($tokensAnalyzer->getClassyElements());
 
-        $this->assertCount(8, $elements);
+        $this->assertCount(9, $elements);
         $this->assertSame('property', $elements[0]['type']);
         $this->assertSame('property', $elements[1]['type']);
         $this->assertSame('property', $elements[2]['type']);
@@ -73,10 +73,13 @@ PHP;
         $this->assertSame('const', $elements[4]['type']);
         $this->assertSame('method', $elements[5]['type']);
         $this->assertSame('method', $elements[6]['type']);
-        $this->assertSame('const', $elements[7]['type']);
+        $this->assertSame('method', $elements[7]['type']);
+        $this->assertSame('const', $elements[8]['type']);
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsAnonymousClassCases
      */
     public function testIsAnonymousClass($source, array $expected)
@@ -115,6 +118,8 @@ PHP;
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsLambdaCases
      */
     public function testIsLambda($source, array $expected)
@@ -164,6 +169,92 @@ preg_replace_callback(
     }
 
     /**
+     * @param string $source
+     *
+     * @dataProvider provideIsLambdaCases70
+     * @requires PHP 7.0
+     */
+    public function testIsLambda70($source, array $expected)
+    {
+        $tokensAnalyzer = new TokensAnalyzer(Tokens::fromCode($source));
+
+        foreach ($expected as $index => $expectedValue) {
+            $this->assertSame($expectedValue, $tokensAnalyzer->isLambda($index));
+        }
+    }
+
+    public function provideIsLambdaCases70()
+    {
+        return array(
+            array(
+                '<?php
+                    $a = function (): array {
+                        return [];
+                    };',
+                array(6 => true),
+            ),
+            array(
+                '<?php
+                    function foo (): array {
+                        return [];
+                    };',
+                array(2 => false),
+            ),
+        );
+    }
+
+    /**
+     * @param string $source
+     *
+     * @dataProvider provideIsLambdaCases71
+     * @requires PHP 7.1
+     */
+    public function testIsLambda71($source, array $expected)
+    {
+        $tokensAnalyzer = new TokensAnalyzer(Tokens::fromCode($source));
+
+        foreach ($expected as $index => $expectedValue) {
+            $this->assertSame($expectedValue, $tokensAnalyzer->isLambda($index));
+        }
+    }
+
+    public function provideIsLambdaCases71()
+    {
+        return array(
+            array(
+                '<?php
+                    $a = function (): void {
+                        return [];
+                    };',
+                array(6 => true),
+            ),
+            array(
+                '<?php
+                    function foo (): void {
+                        return [];
+                    };',
+                array(2 => false),
+            ),
+            array(
+                '<?php
+                    $a = function (): ?int {
+                        return [];
+                    };',
+                array(6 => true),
+            ),
+            array(
+                '<?php
+                    function foo (): ?int {
+                        return [];
+                    };',
+                array(2 => false),
+            ),
+        );
+    }
+
+    /**
+     * @param string $source
+     *
      * @dataProvider provideIsUnarySuccessorOperator
      */
     public function testIsUnarySuccessorOperator($source, array $expected)
@@ -218,6 +309,8 @@ preg_replace_callback(
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsUnaryPredecessorOperator
      */
     public function testIsUnaryPredecessorOperator($source, array $expected)
@@ -280,6 +373,8 @@ preg_replace_callback(
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsUnaryPredecessorOperator56
      * @requires PHP 5.6
      */
@@ -323,6 +418,8 @@ preg_replace_callback(
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsBinaryOperator
      */
     public function testIsBinaryOperator($source, array $expected)
@@ -441,6 +538,8 @@ $b;',
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsBinaryOperator56
      * @requires PHP 5.6
      */
@@ -472,6 +571,8 @@ $b;',
     }
 
     /**
+     * @param string $source
+     *
      * @dataProvider provideIsBinaryOperator70
      * @requires PHP 7.0
      */
@@ -503,6 +604,10 @@ $b;',
     }
 
     /**
+     * @param string $source
+     * @param int    $tokenIndex
+     * @param bool   $isMultilineArray
+     *
      * @dataProvider provideIsArray
      * @requires PHP 5.4
      */
@@ -581,6 +686,9 @@ $b;',
     }
 
     /**
+     * @param string $source
+     * @param int    $tokenIndex
+     *
      * @dataProvider provideArrayExceptions
      */
     public function testIsNotArray($source, $tokenIndex)
@@ -591,11 +699,15 @@ $b;',
     }
 
     /**
-     * @expectedException \InvalidArgumentException
+     * @param string $source
+     * @param int    $tokenIndex
+     *
      * @dataProvider provideArrayExceptions
      */
     public function testIsMultiLineArrayException($source, $tokenIndex)
     {
+        $this->setExpectedException('InvalidArgumentException');
+
         $tokens = Tokens::fromCode($source);
         $tokensAnalyzer = new TokensAnalyzer($tokens);
         $tokensAnalyzer->isArrayMultiLine($tokenIndex);
@@ -614,9 +726,13 @@ $b;',
     }
 
     /**
+     * @param string $source
+     * @param int    $index
+     * @param array  $expected
+     *
      * @dataProvider provideGetFunctionProperties
      */
-    public function testGetFunctionProperties($source, $index, $expected)
+    public function testGetFunctionProperties($source, $index, array $expected)
     {
         $tokens = Tokens::fromCode($source);
         $tokensAnalyzer = new TokensAnalyzer($tokens);
@@ -758,6 +874,9 @@ SRC;
     }
 
     /**
+     * @param string $input
+     * @param bool   $perNamespace
+     *
      * @dataProvider getImportUseIndexesCases
      */
     public function testGetImportUseIndexes(array $expected, $input, $perNamespace = false)
@@ -830,6 +949,9 @@ EOF
     }
 
     /**
+     * @param string $input
+     * @param bool   $perNamespace
+     *
      * @dataProvider getImportUseIndexesCasesPHP70
      * @requires PHP 7.0
      */

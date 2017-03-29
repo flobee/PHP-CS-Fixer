@@ -161,7 +161,7 @@ final class TokensAnalyzer
      */
     public function isArray($index)
     {
-        return $this->tokens[$index]->isGivenKind(array(T_ARRAY, CT_ARRAY_SQUARE_BRACE_OPEN));
+        return $this->tokens[$index]->isGivenKind(array(T_ARRAY, CT::T_ARRAY_SQUARE_BRACE_OPEN));
     }
 
     /**
@@ -176,7 +176,7 @@ final class TokensAnalyzer
     public function isArrayMultiLine($index)
     {
         if (!$this->isArray($index)) {
-            throw new \InvalidArgumentException('Not an array at given index');
+            throw new \InvalidArgumentException(sprintf('Not an array at given index %d.', $index));
         }
 
         $tokens = $this->tokens;
@@ -232,7 +232,7 @@ final class TokensAnalyzer
         $token = $tokens[$index];
 
         if (!$token->isGivenKind(T_FUNCTION)) {
-            throw new \LogicException(sprintf('No T_FUNCTION at given index %d, got %s', $index, $token->getName()));
+            throw new \LogicException(sprintf('No T_FUNCTION at given index %d, got %s.', $index, $token->getName()));
         }
 
         $attributes = array(
@@ -244,9 +244,6 @@ final class TokensAnalyzer
 
         for ($i = $index; $i >= 0; --$i) {
             $tokenIndex = $tokens->getPrevMeaningfulToken($i);
-            if (null === $tokenIndex) {
-                break;
-            }
 
             $i = $tokenIndex;
             $token = $tokens[$tokenIndex];
@@ -304,7 +301,7 @@ final class TokensAnalyzer
         $token = $tokens[$index];
 
         if (!$token->isClassy()) {
-            throw new \LogicException('No classy token at given index');
+            throw new \LogicException(sprintf('No classy token at given index %d.', $index));
         }
 
         if (!$token->isGivenKind(T_CLASS)) {
@@ -327,14 +324,14 @@ final class TokensAnalyzer
         $token = $tokens[$index];
 
         if (!$token->isGivenKind(T_FUNCTION)) {
-            throw new \LogicException(sprintf('No T_FUNCTION at given index %d, got %s', $index, $token->getName()));
+            throw new \LogicException(sprintf('No T_FUNCTION at given index %d, got %s.', $index, $token->getName()));
         }
 
         $startParenthesisIndex = $tokens->getNextMeaningfulToken($index);
         $startParenthesisToken = $tokens[$startParenthesisIndex];
 
         // skip & for `function & () {}` syntax
-        if ($startParenthesisToken->equals('&')) {
+        if ($startParenthesisToken->isGivenKind(CT::T_RETURN_REF)) {
             $startParenthesisIndex = $tokens->getNextMeaningfulToken($startParenthesisIndex);
             $startParenthesisToken = $tokens[$startParenthesisIndex];
         }
@@ -355,8 +352,8 @@ final class TokensAnalyzer
             ']',
             array(T_STRING),
             array(T_VARIABLE),
-            array(CT_DYNAMIC_PROP_BRACE_CLOSE),
-            array(CT_DYNAMIC_VAR_BRACE_CLOSE),
+            array(CT::T_DYNAMIC_PROP_BRACE_CLOSE),
+            array(CT::T_DYNAMIC_VAR_BRACE_CLOSE),
         );
 
         $tokens = $this->tokens;
@@ -382,7 +379,7 @@ final class TokensAnalyzer
     {
         static $potentialSuccessorOperator = array(T_INC, T_DEC);
 
-        static $potentialBinaryOperator = array('+', '-', '&');
+        static $potentialBinaryOperator = array('+', '-', '&', array(CT::T_RETURN_REF));
 
         static $otherOperators;
         if (null === $otherOperators) {
@@ -400,9 +397,9 @@ final class TokensAnalyzer
                 ')',
                 '"',
                 '`',
-                array(CT_ARRAY_SQUARE_BRACE_CLOSE),
-                array(CT_DYNAMIC_PROP_BRACE_CLOSE),
-                array(CT_DYNAMIC_VAR_BRACE_CLOSE),
+                array(CT::T_ARRAY_SQUARE_BRACE_CLOSE),
+                array(CT::T_DYNAMIC_PROP_BRACE_CLOSE),
+                array(CT::T_DYNAMIC_VAR_BRACE_CLOSE),
                 array(T_CLASS_C),
                 array(T_CONSTANT_ENCAPSED_STRING),
                 array(T_DEC),
@@ -563,7 +560,7 @@ final class TokensAnalyzer
         $token = $tokens[$index];
 
         if (!$token->isGivenKind(T_WHILE)) {
-            throw new \LogicException(sprintf('No T_WHILE at given index %d, got %s', $index, $token->getName()));
+            throw new \LogicException(sprintf('No T_WHILE at given index %d, got %s.', $index, $token->getName()));
         }
 
         $endIndex = $tokens->getPrevMeaningfulToken($index);

@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Alias;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Utils;
 
@@ -42,6 +44,19 @@ final class EregToPregFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Replace deprecated `ereg` regular expression functions with preg.',
+            array(new CodeSample('<?php $x = ereg(\'[A-Z]\');')),
+            null,
+            'Risky if the `ereg` funcion is overridden.'
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_STRING);
@@ -58,7 +73,7 @@ final class EregToPregFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         $end = $tokens->count() - 1;
 
@@ -97,8 +112,9 @@ final class EregToPregFixer extends AbstractFixer
                 }
 
                 // convert to PCRE
-                $string = substr($tokens[$match[2]]->getContent(), 1, -1);
-                $quote = substr($tokens[$match[2]]->getContent(), 0, 1);
+                $regexTokenContent = $tokens[$match[2]]->getContent();
+                $string = substr($regexTokenContent, 1, -1);
+                $quote = $regexTokenContent[0];
                 $delim = $this->getBestDelimiter($string);
                 $preg = $delim.addcslashes($string, $delim).$delim.'D'.$map[2];
 
@@ -112,14 +128,6 @@ final class EregToPregFixer extends AbstractFixer
                 $tokens[$match[0]]->setContent($map[1]);
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Replace deprecated ereg regular expression functions with preg.';
     }
 
     /**

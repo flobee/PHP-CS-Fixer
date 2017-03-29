@@ -23,6 +23,9 @@ use PhpCsFixer\Tokenizer\Tokens;
 final class NoUselessElseFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider providePHPCloseTagCases
      */
     public function testCloseTagCases($expected, $input = null)
@@ -123,6 +126,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixIfElseIfElseCases
      */
     public function testFixIfElseIfElse($expected, $input = null)
@@ -245,6 +251,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixIfElseCases
      */
     public function testFixIfElse($expected, $input = null)
@@ -353,54 +362,8 @@ else?><?php echo 5;',
 
     /**
      * @param string      $expected
-     * @param string|null $input
+     * @param null|string $input
      *
-     * @return array<string, string>
-     */
-    private function generateCases($expected, $input = null)
-    {
-        $cases = array();
-        foreach (array(
-            'exit;',
-            'exit();',
-            'exit(1);',
-            'die;',
-            'die();',
-            'die(1);',
-            'break;',
-            'break 2;',
-            'break (2);',
-            'continue;',
-            'continue 2;',
-            'continue (2);',
-            'return;',
-            'return 1;',
-            'return (1);',
-            'return "a";',
-            'return 8+2;',
-            'return null;',
-            'return sum(1+8*6, 2);',
-            'throw $e;',
-            'throw ($e);',
-            'throw new \Exception;',
-            'throw new \Exception();',
-            'throw new \Exception((string)12+1);',
-        ) as $case) {
-            if (null === $input) {
-                $cases[] = array(sprintf($expected, $case));
-                $cases[] = array(sprintf($expected, strtoupper($case)));
-                $cases[] = array(sprintf($expected, strtolower($case)));
-            } else {
-                $cases[] = array(sprintf($expected, $case), sprintf($input, $case));
-                $cases[] = array(sprintf($expected, strtoupper($case)), sprintf($input, strtoupper($case)));
-                $cases[] = array(sprintf($expected, strtolower($case)), sprintf($input, strtolower($case)));
-            }
-        }
-
-        return $cases;
-    }
-
-    /**
      * @dataProvider provideFixNestedIfs
      */
     public function testFixNestedIfs($expected, $input = null)
@@ -439,6 +402,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideBefore54FixCases
      */
     public function testBefore54Fix($expected, $input = null)
@@ -498,6 +464,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixEmptyElseCases
      */
     public function testFixEmptyElse($expected, $input = null)
@@ -590,6 +559,8 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string $expected
+     *
      * @dataProvider provideNegativeCases
      */
     public function testNegativeCases($expected)
@@ -760,6 +731,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string $source
+     * @param int    $index
+     *
      * @dataProvider provideBlockDetectionCases
      */
     public function testBlockDetection(array $expected, $source, $index)
@@ -767,11 +741,10 @@ else?><?php echo 5;',
         Tokens::clearCache();
         $tokens = Tokens::fromCode($source);
 
-        $fixer = $this->getFixer();
-        $method = new \ReflectionMethod($fixer, 'getPreviousBlock');
+        $method = new \ReflectionMethod($this->fixer, 'getPreviousBlock');
         $method->setAccessible(true);
 
-        $result = $method->invoke($fixer, $tokens, $index);
+        $result = $method->invoke($this->fixer, $tokens, $index);
 
         $this->assertSame($expected, $result);
     }
@@ -820,6 +793,9 @@ else?><?php echo 5;',
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideAlternativeSyntaxCases
      */
     public function testAlternativeSyntax($expected, $input = null)
@@ -849,5 +825,54 @@ else?><?php echo 5;',
                 ',
             ),
         );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @return array<string, string>
+     */
+    private function generateCases($expected, $input = null)
+    {
+        $cases = array();
+        foreach (array(
+            'exit;',
+            'exit();',
+            'exit(1);',
+            'die;',
+            'die();',
+            'die(1);',
+            'break;',
+            'break 2;',
+            'break (2);',
+            'continue;',
+            'continue 2;',
+            'continue (2);',
+            'return;',
+            'return 1;',
+            'return (1);',
+            'return "a";',
+            'return 8+2;',
+            'return null;',
+            'return sum(1+8*6, 2);',
+            'throw $e;',
+            'throw ($e);',
+            'throw new \Exception;',
+            'throw new \Exception();',
+            'throw new \Exception((string)12+1);',
+        ) as $case) {
+            if (null === $input) {
+                $cases[] = array(sprintf($expected, $case));
+                $cases[] = array(sprintf($expected, strtoupper($case)));
+                $cases[] = array(sprintf($expected, strtolower($case)));
+            } else {
+                $cases[] = array(sprintf($expected, $case), sprintf($input, $case));
+                $cases[] = array(sprintf($expected, strtoupper($case)), sprintf($input, strtoupper($case)));
+                $cases[] = array(sprintf($expected, strtolower($case)), sprintf($input, strtolower($case)));
+            }
+        }
+
+        return $cases;
     }
 }

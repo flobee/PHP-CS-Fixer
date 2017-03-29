@@ -13,15 +13,20 @@
 namespace PhpCsFixer\Tests\Fixer\NamespaceNotation;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Bram Gotink <bram@gotink.me>
+ * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  *
  * @internal
  */
 final class NoLeadingNamespaceWhitespaceFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideExamples
      */
     public function testFix($expected, $input = null)
@@ -38,79 +43,106 @@ final class NoLeadingNamespaceWhitespaceFixerTest extends AbstractFixerTestCase
 
         return array(
             // with newline
-            array("<?php\nnamespace Test;"),
-            array("<?php\n\nnamespace Test;"),
-            array("<?php\nnamespace Test;", "<?php\n namespace Test;"),
+            array("<?php\nnamespace Test1;"),
+            array("<?php\n\nnamespace Test2;"),
+            array("<?php\nnamespace Test3;", "<?php\n namespace Test3;"),
             // without newline
-            array('<?php namespace Test;'),
-            array('<?php namespace Test;', '<?php  namespace Test;'),
+            array('<?php namespace Test4;'),
+            array('<?php namespace Test5;', '<?php  namespace Test5;'),
             // multiple namespaces with newline
             array(
                 '<?php
-namespace Test1;
-namespace Test2;',
+namespace Test6a;
+namespace Test6b;',
             ),
             array(
                 '<?php
-namespace Test1;
+namespace Test7a;
 /* abc */
-namespace Test2;',
+namespace Test7b;',
                 '<?php
-namespace Test1;
-/* abc */namespace Test2;',
+namespace Test7a;
+/* abc */namespace Test7b;',
             ),
             array(
                 '<?php
-namespace Test1;
-namespace Test2;',
+namespace Test8a;
+namespace Test8b;',
                 '<?php
- namespace Test1;
-    namespace Test2;',
+ namespace Test8a;
+    namespace Test8b;',
             ),
             array(
                 '<?php
-namespace Test1;
+namespace Test9a;
 class Test {}
-namespace Test2;',
+namespace Test9b;',
                 '<?php
- namespace Test1;
+ namespace Test9a;
 class Test {}
-   namespace Test2;',
+   namespace Test9b;',
             ),
             array(
                 '<?php
-namespace Test1;
+namespace Test10a;
 use Exception;
-namespace Test2;',
+namespace Test10b;',
                 '<?php
- namespace Test1;
+ namespace Test10a;
 use Exception;
-   namespace Test2;',
+   namespace Test10b;',
             ),
             // multiple namespaces without newline
-            array('<?php namespace Test1; namespace Test2;'),
-            array('<?php namespace Test1; namespace Test2;', '<?php    namespace Test1;  namespace Test2;'),
-            array('<?php namespace Test1; namespace Test2;', '<?php namespace Test1;  namespace Test2;'),
+            array('<?php namespace Test11a; namespace Test11b;'),
+            array('<?php namespace Test12a; namespace Test12b;', '<?php    namespace Test12a;  namespace Test12b;'),
+            array('<?php namespace Test13a; namespace Test13b;', '<?php namespace Test13a;  namespace Test13b;'),
             // namespaces without spaces in between
             array(
                 '<?php
-namespace Test1{}
-namespace Test2{}',
+namespace Test14a{}
+namespace Test14b{}',
                 '<?php
-     namespace Test1{}namespace Test2{}',
+     namespace Test14a{}namespace Test14b{}',
             ),
             array(
                 '<?php
-namespace Test1;
-namespace Test2;',
+namespace Test15a;
+namespace Test15b;',
                 '<?php
-namespace Test1;namespace Test2;',
+namespace Test15a;namespace Test15b;',
             ),
             array(
                 '<?php
 '.implode("\n", $manySpaces),
                 '<?php
 '.implode('', $manySpaces),
+            ),
+        );
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\nnamespace TestW1a{}\r\nnamespace TestW1b{}",
+                "<?php\r\n     namespace TestW1a{}\r\nnamespace TestW1b{}",
+            ),
+            array(
+                "<?php\r\nnamespace Test14a{}\r\nnamespace Test14b{}",
+                "<?php\r\n     namespace Test14a{}namespace Test14b{}",
             ),
         );
     }

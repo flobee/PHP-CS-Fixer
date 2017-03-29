@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 use PhpCsFixer\Utils;
 
@@ -23,50 +26,44 @@ use PhpCsFixer\Utils;
  * @author Graham Campbell <graham@alt-three.com>
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class PhpdocAlignFixer extends AbstractFixer
+final class PhpdocAlignFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function isCandidate(Tokens $tokens)
-    {
-        return $tokens->isTokenKindFound(T_DOC_COMMENT);
-    }
-
     private $regex;
     private $regexCommentLine;
 
     public function __construct()
     {
+        parent::__construct();
+
+        $indent = '(?P<indent>(?: {2}|\t)*)';
         // e.g. @param <hint> <$var>
-        $paramTag = '(?P<tag>param)\s+(?P<hint>[^$]+?)\s+(?P<var>&?\$[^\s]+)';
+        $paramTag = '(?P<tag>param)\s+(?P<hint>[^$]+?)\s+(?P<var>(?:&|\.{3})?\$[^\s]+)';
         // e.g. @return <hint>
         $otherTags = '(?P<tag2>return|throws|var|type)\s+(?P<hint2>[^\s]+?)';
         // optional <desc>
-        $desc = '(?:\s+(?P<desc>.*)|\s*)';
+        $desc = '(?:\s+(?P<desc>\V*))';
 
-        $this->regex = '/^(?P<indent>(?: {4})*) \* @(?:'.$paramTag.'|'.$otherTags.')'.$desc.'$/';
-        $this->regexCommentLine = '/^(?P<indent>(?: {4})*) \*(?! @)(?:\s+(?P<desc>.+))(?<!\*\/)$/';
+        $this->regex = '/^'.$indent.' \* @(?:'.$paramTag.'|'.$otherTags.')'.$desc.'\s*$/u';
+        $this->regexCommentLine = '/^'.$indent.' \*(?! @)(?:\s+(?P<desc>\V+))(?<!\*\/)$/u';
     }
 
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
     {
-        foreach ($tokens as $index => $token) {
-            if ($token->isGivenKind(T_DOC_COMMENT)) {
-                $tokens[$index]->setContent($this->fixDocBlock($token->getContent()));
-            }
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'All items of the @param, @throws, @return, @var, and @type phpdoc tags must be aligned vertically.';
+        return new FixerDefinition(
+            'All items of the @param, @throws, @return, @var, and @type phpdoc tags must be aligned vertically.',
+            array(new CodeSample('<?php
+/**
+ * @param  EngineInterface $templating
+ * @param string      $format
+ * @param  int  $code       an HTTP response status code
+ * @param    bool         $debug
+ * @param  mixed    &$reference     a parameter passed by reference
+ */
+'))
+        );
     }
 
     /**
@@ -85,6 +82,26 @@ final class PhpdocAlignFixer extends AbstractFixer
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function isCandidate(Tokens $tokens)
+    {
+        return $tokens->isTokenKindFound(T_DOC_COMMENT);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
+    {
+        foreach ($tokens as $index => $token) {
+            if ($token->isGivenKind(T_DOC_COMMENT)) {
+                $tokens[$index]->setContent($this->fixDocBlock($token->getContent()));
+            }
+        }
+    }
+
+    /**
      * Fix a given docblock.
      *
      * @param string $content
@@ -93,6 +110,7 @@ final class PhpdocAlignFixer extends AbstractFixer
      */
     private function fixDocBlock($content)
     {
+        $lineEnding = $this->whitespacesConfig->getLineEnding();
         $lines = Utils::splitLines($content);
 
         $l = count($lines);
@@ -108,7 +126,17 @@ final class PhpdocAlignFixer extends AbstractFixer
             $current = $i;
             $items[] = $matches;
 
-            while ($matches = $this->getMatches($lines[++$i], true)) {
+            while (true) {
+                if (!isset($lines[++$i])) {
+                    break 2;
+                }
+
+                $matches = $this->getMatches($lines[$i], true);
+
+                if (!$matches) {
+                    break;
+                }
+
                 $items[] = $matches;
             }
 
@@ -133,7 +161,7 @@ final class PhpdocAlignFixer extends AbstractFixer
             foreach ($items as $j => $item) {
                 if (null === $item['tag']) {
                     if ($item['desc'][0] === '@') {
-                        $lines[$current + $j] = $item['indent'].' * '.$item['desc']."\n";
+                        $lines[$current + $j] = $item['indent'].' * '.$item['desc'].$lineEnding;
                         continue;
                     }
 
@@ -142,7 +170,7 @@ final class PhpdocAlignFixer extends AbstractFixer
                         .' *  '
                         .str_repeat(' ', $tagMax + $hintMax + $varMax + ('param' === $currTag ? 3 : 2))
                         .$item['desc']
-                        ."\n";
+                        .$lineEnding;
 
                     $lines[$current + $j] = $line;
 
@@ -165,14 +193,14 @@ final class PhpdocAlignFixer extends AbstractFixer
                         .$item['var']
                         .(
                             !empty($item['desc'])
-                            ? str_repeat(' ', $varMax - strlen($item['var']) + 1).$item['desc']."\n"
-                            : "\n"
+                            ? str_repeat(' ', $varMax - strlen($item['var']) + 1).$item['desc'].$lineEnding
+                            : $lineEnding
                         )
                     ;
                 } elseif (!empty($item['desc'])) {
-                    $line .= str_repeat(' ', $hintMax - strlen($item['hint']) + 1).$item['desc']."\n";
+                    $line .= str_repeat(' ', $hintMax - strlen($item['hint']) + 1).$item['desc'].$lineEnding;
                 } else {
-                    $line .= "\n";
+                    $line .= $lineEnding;
                 }
 
                 $lines[$current + $j] = $line;
@@ -196,6 +224,7 @@ final class PhpdocAlignFixer extends AbstractFixer
             if (!empty($matches['tag2'])) {
                 $matches['tag'] = $matches['tag2'];
                 $matches['hint'] = $matches['hint2'];
+                $matches['var'] = '';
             }
 
             return $matches;

@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Tokenizer\Transformer;
 
 use PhpCsFixer\Test\AbstractTransformerTestCase;
+use PhpCsFixer\Tokenizer\CT;
 
 /**
  * @author Gregor Harlan <gharlan@web.de>
@@ -22,12 +23,23 @@ use PhpCsFixer\Test\AbstractTransformerTestCase;
 final class ImportTransformerTest extends AbstractTransformerTestCase
 {
     /**
+     * @param string $source
+     *
      * @dataProvider provideProcessCases
      * @requires PHP 5.6
      */
     public function testProcess($source, array $expectedTokens = array())
     {
-        $this->doTest($source, $expectedTokens);
+        $this->doTest(
+            $source,
+            $expectedTokens,
+            array(
+                T_CONST,
+                CT::T_CONST_IMPORT,
+                T_FUNCTION,
+                CT::T_FUNCTION_IMPORT,
+            )
+        );
     }
 
     public function provideProcessCases()
@@ -36,49 +48,49 @@ final class ImportTransformerTest extends AbstractTransformerTestCase
             array(
                 '<?php const FOO = 1;',
                 array(
-                    1 => 'T_CONST',
+                    1 => T_CONST,
                 ),
             ),
             array(
                 '<?php use Foo; const FOO = 1;',
                 array(
-                    6 => 'T_CONST',
+                    6 => T_CONST,
                 ),
             ),
             array(
                 '<?php class Foo { const BAR = 1; }',
                 array(
-                    7 => 'T_CONST',
+                    7 => T_CONST,
                 ),
             ),
             array(
                 '<?php use const Foo\\BAR;',
                 array(
-                    3 => 'CT_CONST_IMPORT',
+                    3 => CT::T_CONST_IMPORT,
                 ),
             ),
             array(
                 '<?php function foo() {}',
                 array(
-                    1 => 'T_FUNCTION',
+                    1 => T_FUNCTION,
                 ),
             ),
             array(
                 '<?php $a = function () {};',
                 array(
-                    5 => 'T_FUNCTION',
+                    5 => T_FUNCTION,
                 ),
             ),
             array(
                 '<?php class Foo { function foo() {} }',
                 array(
-                    7 => 'T_FUNCTION',
+                    7 => T_FUNCTION,
                 ),
             ),
             array(
                 '<?php use function Foo\\bar;',
                 array(
-                    3 => 'CT_FUNCTION_IMPORT',
+                    3 => CT::T_FUNCTION_IMPORT,
                 ),
             ),
         );

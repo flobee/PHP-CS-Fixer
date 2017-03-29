@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Comment;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -25,6 +27,17 @@ final class HashToSlashCommentFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Single line comments should use double slashes `//` and not hash `#`.',
+            array(new CodeSample('<?php # comment'))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_COMMENT);
@@ -33,20 +46,13 @@ final class HashToSlashCommentFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        for ($i = 0, $count = count($tokens); $i < $count - 1; ++$i) {
-            if ($tokens[$i]->isGivenKind(T_COMMENT) && '#' === substr($tokens[$i]->getContent(), 0, 1)) {
-                $tokens[$i]->setContent('//'.substr($tokens[$i]->getContent(), 1));
+        for ($i = 1, $count = count($tokens); $i < $count; ++$i) {
+            $originalContent = $tokens[$i]->isGivenKind(T_COMMENT) ? $tokens[$i]->getContent() : null;
+            if (null !== $originalContent && '#' === $originalContent[0]) {
+                $tokens[$i]->setContent('//'.substr($originalContent, 1));
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Single line comments should use double slashes (//) and not hash (#).';
     }
 }

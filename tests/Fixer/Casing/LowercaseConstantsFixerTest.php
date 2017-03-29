@@ -23,30 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class LowercaseConstantsFixerTest extends AbstractFixerTestCase
 {
     /**
-     * {@inheritdoc}
-     */
-    protected function isLintException($source)
-    {
-        return in_array($source, array(
-            '<?php Class Null { use True; }',
-            '<?php Class Null { use True; }',
-            '<?php class True {} class False {} class Null {}',
-            '<?php interface True {}',
-            '<?php trait False {}',
-            '<?php use Foo\Null as Null;',
-            '<?php use Foo\Null;',
-            '<?php
-    class Null {
-        use True, False {
-            False::bar insteadof True;
-            True::baz insteadof False;
-            False::baz as Null;
-        }
-    }',
-        ), true);
-    }
-
-    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideGeneratedCases
      */
     public function testFixGeneratedCases($expected, $input = null)
@@ -58,26 +37,29 @@ final class LowercaseConstantsFixerTest extends AbstractFixerTestCase
     {
         $cases = array();
         foreach (array('true', 'false', 'null') as $case) {
-            $cases [] = array(
+            $cases[] = array(
                 sprintf('<?php $x = %s;', $case),
                 sprintf('<?php $x = %s;', strtoupper($case)),
             );
 
-            $cases [] = array(
+            $cases[] = array(
                 sprintf('<?php $x = %s;', $case),
                 sprintf('<?php $x = %s;', ucfirst($case)),
             );
 
-            $cases [] = array(sprintf('<?php $x = new %s;', ucfirst($case)));
-            $cases [] = array(sprintf('<?php $x = new %s;', strtoupper($case)));
-            $cases [] = array(sprintf('<?php $x = "%s story";', $case));
-            $cases [] = array(sprintf('<?php $x = "%s";', $case));
+            $cases[] = array(sprintf('<?php $x = new %s;', ucfirst($case)));
+            $cases[] = array(sprintf('<?php $x = new %s;', strtoupper($case)));
+            $cases[] = array(sprintf('<?php $x = "%s story";', $case));
+            $cases[] = array(sprintf('<?php $x = "%s";', $case));
         }
 
         return $cases;
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -148,6 +130,9 @@ final class LowercaseConstantsFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provide54Cases
      * @requires PHP 5.4
      */

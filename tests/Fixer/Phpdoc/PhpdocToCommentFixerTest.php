@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class PhpdocToCommentFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideDocblocks
      */
     public function testFix($expected, $input = null)
@@ -30,6 +33,9 @@ final class PhpdocToCommentFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @requires PHP 5.4
      * @dataProvider provideTraits
      */
@@ -63,6 +69,11 @@ class DocBlocks
      * Do not convert this
      */
     protected $indent = false;
+
+    /**
+     * Do not convert this
+     */
+    var $oldPublicStyle;
 
     /**
      * Do not convert this
@@ -181,6 +192,69 @@ $first = true;// needed because by default first docblock is never fixed.
 /**
  * Do not convert this
  *
+ * @var int
+ */
+$a = require "require.php";
+
+/**
+ * Do not convert this
+ *
+ * @var int
+ */
+$b = require_once "require_once.php";
+
+/**
+ * Do not convert this
+ *
+ * @var int
+ */
+$c = include "include.php";
+
+/**
+ * Do not convert this
+ *
+ * @var int
+ */
+$d = include_once "include_once.php";
+
+/**
+ * @var Composer\Autoload\ClassLoader $loader
+ */
+$loader = require_once __DIR__."/vendor/autoload.php";
+',
+        );
+
+        $cases[] = array(
+            '<?php
+$first = true;// needed because by default first docblock is never fixed.
+
+/**
+ * @var ClassLoader $loader
+ */
+$loader = require_once __DIR__."/../app/autoload.php";
+',
+        );
+
+        $cases[] = array(
+            '<?php
+$first = true;// needed because by default first docblock is never fixed.
+
+/**
+ * Do not convert this
+ *
+ * @var Foo
+ */
+$foo = createFoo();
+',
+        );
+
+        $cases[] = array(
+            '<?php
+$first = true;// needed because by default first docblock is never fixed.
+
+/**
+ * Do not convert this
+ *
  * @var bool $local
  */
 $local = true;
@@ -191,16 +265,8 @@ $local = true;
             '<?php
 $first = true;// needed because by default first docblock is never fixed.
 
-/*
- * This should be a normal comment
- */
-$local = true;
-',
-            '<?php
-$first = true;// needed because by default first docblock is never fixed.
-
 /**
- * This should be a normal comment
+ * Comment
  */
 $local = true;
 ',

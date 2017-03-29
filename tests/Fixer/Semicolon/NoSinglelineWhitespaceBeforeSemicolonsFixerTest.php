@@ -24,6 +24,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class NoSinglelineWhitespaceBeforeSemicolonsFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -85,9 +88,6 @@ $this
         ->bar(1)
         //->baz(2)
     ;',
-            ),
-            array(
-                '<?php $this->foo();',
             ),
             array(
                 '<?php $this->foo("with semicolon in string) ; ");',

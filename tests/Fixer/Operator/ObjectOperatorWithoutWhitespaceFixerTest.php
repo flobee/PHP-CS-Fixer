@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class ObjectOperatorWithoutWhitespaceFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -55,9 +58,6 @@ final class ObjectOperatorWithoutWhitespaceFixerTest extends AbstractFixerTestCa
             array(
                 '<?php $object->method();',
                 '<?php $object	->	method();',
-            ),
-            array(
-                '<?php $object->method();',
             ),
             array(
                 '<?php echo "use it as -> you want";',

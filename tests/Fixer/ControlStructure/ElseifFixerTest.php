@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class ElseifFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideTestFixCases
      */
     public function testFix($expected, $input = null)
@@ -84,6 +87,10 @@ final class ElseifFixerTest extends AbstractFixerTestCase
                         if ($b) {
                     }
                 ',
+            ),
+            array(
+                '<?php if ($a) {} /**/elseif ($b){}',
+                '<?php if ($a) {} /**/else if ($b){}',
             ),
         );
     }

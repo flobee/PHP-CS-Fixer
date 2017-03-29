@@ -14,6 +14,7 @@ namespace PhpCsFixer\Tests\Fixer\ClassNotation;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
 use PhpCsFixer\Tokenizer\Tokens;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @internal
@@ -31,10 +32,9 @@ final class MethodSeparationFixerTest extends AbstractFixerTestCase
     {
         Tokens::clearCache();
         $tokens = Tokens::fromCode($code);
-        $fixer = $this->getFixer();
-        $method = new \ReflectionMethod($fixer, 'findCommentBlockStart');
+        $method = new \ReflectionMethod($this->fixer, 'findCommentBlockStart');
         $method->setAccessible(true);
-        if ($expected !== $result = $method->invoke($fixer, $tokens, $index)) {
+        if ($expected !== $result = $method->invoke($this->fixer, $tokens, $index)) {
             $this->fail(sprintf('Expected index %d (%s) got index %d (%s).', $expected, $tokens[$expected]->toJson(), $result, $tokens[$result]->toJson()));
         }
     }
@@ -117,6 +117,9 @@ final class MethodSeparationFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixClassesCases
      */
     public function testFixClasses($expected, $input = null)
@@ -661,6 +664,9 @@ function test2() {
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @requires PHP 5.4
      * @dataProvider provideFixTraitsCases
      */
@@ -756,6 +762,9 @@ trait SomeReturnInfo {
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideFixInterfaces
      */
     public function testFixInterfaces($expected, $input = null)
@@ -836,5 +845,32 @@ class ezcReflectionMethod extends ReflectionMethod {
         );
 
         return $cases;
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\r\nclass SomeClass\r\n{\r\n    // comment\n\n    public function echoA()\r\n    {\r\n        echo 'a';\r\n    }\r\n}\r\n",
+                "<?php\r\nclass SomeClass\r\n{\r\n    // comment\n\n\n    public function echoA()\r\n    {\r\n        echo 'a';\r\n    }\r\n}\r\n",
+            ),
+            array(
+                "<?php\r\nclass SomeClass\r\n{\r\n    // comment\r\n\r\n    public function echoA()\r\n    {\r\n        echo 'a';\r\n    }\r\n}\r\n",
+                "<?php\r\nclass SomeClass\r\n{\r\n    // comment\r\n\r\n\r\n    public function echoA()\r\n    {\r\n        echo 'a';\r\n    }\r\n}\r\n",
+            ),
+        );
     }
 }

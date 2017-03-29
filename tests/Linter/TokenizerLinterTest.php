@@ -18,34 +18,23 @@ use PhpCsFixer\Linter\TokenizerLinter;
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  *
  * @internal
+ *
+ * @requires PHP 7.0
+ * @covers \PhpCsFixer\Linter\TokenizerLinter
+ * @covers \PhpCsFixer\Linter\TokenizerLintingResult
  */
-final class TokenizerLinterTest extends \PHPUnit_Framework_TestCase
+final class TokenizerLinterTest extends AbstractLinterTestCase
 {
-    /**
-     * @covers PhpCsFixer\Linter\TokenizerLinter::lintSource
-     * @requires PHP 7.0
-     */
-    public function testLintSourceWithGoodCode()
+    public function testIsAsync()
     {
-        $linter = new TokenizerLinter();
-        $linter->lintSource('<?php echo 123;')->check(); // no exception should be raised
+        $this->assertFalse($this->createLinter()->isAsync());
     }
 
     /**
-     * @covers PhpCsFixer\Linter\TokenizerLinter::lintSource
-     * @requires PHP 7.0
-     *
-     * @expectedException \PhpCsFixer\Linter\LintingException
-     * @expectedExceptionMessageRegExp /syntax error, unexpected.*T_ECHO.*line 5/
+     * {@inheritdoc}
      */
-    public function testLintSourceWithBadCode()
+    protected function createLinter()
     {
-        $linter = new TokenizerLinter();
-        $linter->lintSource('<?php
-            print "line 2";
-            print "line 3";
-            print "line 4";
-            echo echo;
-        ')->check();
+        return new TokenizerLinter();
     }
 }

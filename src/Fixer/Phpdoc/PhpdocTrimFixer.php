@@ -14,6 +14,8 @@ namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\DocBlock\DocBlock;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -24,36 +26,20 @@ final class PhpdocTrimFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function isCandidate(Tokens $tokens)
+    public function getDefinition()
     {
-        return $tokens->isTokenKindFound(T_DOC_COMMENT);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
-    {
-        foreach ($tokens as $token) {
-            if (!$token->isGivenKind(T_DOC_COMMENT)) {
-                continue;
-            }
-
-            $content = $token->getContent();
-            $content = $this->fixStart($content);
-            // we need re-parse the docblock after fixing the start before
-            // fixing the end in order for the lines to be correctly indexed
-            $content = $this->fixEnd($content);
-            $token->setContent($content);
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Phpdocs should start and end with content, excluding the very first and last line of the docblocks.';
+        return new FixerDefinition(
+            'Phpdocs should start and end with content, excluding the very first and last line of the docblocks.',
+            array(new CodeSample('<?php
+/**
+ *
+ * Foo must be final class.
+ *
+ *
+ */
+final class Foo {}
+'))
+        );
     }
 
     /**
@@ -67,6 +53,33 @@ final class PhpdocTrimFixer extends AbstractFixer
          * lines this fixer would have otherwise cleaned up.
          */
         return -5;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isCandidate(Tokens $tokens)
+    {
+        return $tokens->isTokenKindFound(T_DOC_COMMENT);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
+    {
+        foreach ($tokens as $token) {
+            if (!$token->isGivenKind(T_DOC_COMMENT)) {
+                continue;
+            }
+
+            $content = $token->getContent();
+            $content = $this->fixStart($content);
+            // we need re-parse the docblock after fixing the start before
+            // fixing the end in order for the lines to be correctly indexed
+            $content = $this->fixEnd($content);
+            $token->setContent($content);
+        }
     }
 
     /**

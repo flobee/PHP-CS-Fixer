@@ -22,6 +22,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class ModernizeTypesCastingFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideExamples
      */
     public function testFix($expected, $input = null)
@@ -120,7 +123,7 @@ OVERRIDDEN;
             array('<?php $x = (float) $x;', '<?php $x = floatval($x);'),
             array('<?php $x = (float) $x;', '<?php $x = doubleval($x);'),
             array('<?php $x = (string) $x;', '<?php $x = strval($x);'),
-            array('<?php $x = (bool) $x;', '<?php $x = boolval($x);'),
+            array('<?php $x = (bool) $x;', '<?php $x = boolval   (  $x  );'),
             array('<?php $x = (int) (mt_rand(0, 100));', '<?php $x = intval(mt_rand(0, 100));'),
             array('<?php $x = (int) (mt_rand(0, 100));', '<?php $x = \\intval(mt_rand(0, 100));'),
             array('<?php $x = (int) (mt_rand(0, 100)).".dist";', '<?php $x = intval(mt_rand(0, 100)).".dist";'),
@@ -136,6 +139,17 @@ OVERRIDDEN;
             array(
                 '<?php $x = (string) ((int) ((int) $x + (float) $x));',
                 '<?php $x = strval(intval(intval($x) + floatval($x)));',
+            ),
+            array(
+                '<?php intval();intval(1,2,3);',
+            ),
+            array(
+                '<?php
+                interface Test
+                {
+                    public function floatval($a);
+                    public function &doubleval($a);
+                }',
             ),
         );
     }

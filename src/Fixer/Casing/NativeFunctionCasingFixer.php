@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Casing;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -20,6 +22,17 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class NativeFunctionCasingFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Function defined by PHP should be called using the correct casing.',
+            array(new CodeSample("<?php\nSTRLEN(\$str);"))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,7 +44,7 @@ final class NativeFunctionCasingFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         static $nativeFunctionNames = null;
 
@@ -73,14 +86,6 @@ final class NativeFunctionCasingFixer extends AbstractFixer
             $tokens[$index]->setContent($nativeFunctionNames[$lower]);
             $index = $next;
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Function defined by PHP should be called using the correct casing.';
     }
 
     /**

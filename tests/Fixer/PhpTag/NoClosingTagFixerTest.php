@@ -20,6 +20,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class NoClosingTagFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCasesWithFullOpenTag
      */
     public function testCasesWithFullOpenTag($expected, $input = null)
@@ -28,6 +31,9 @@ final class NoClosingTagFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCasesWithShortOpenTag
      */
     public function testCasesWithShortOpenTag($expected, $input = null)
@@ -102,19 +108,49 @@ if (true) {
     echo "Here I am!";
 }?>',
             ),
+            'Trailing linebreak, priority issue with SingleBlankLineAtEofFixer.' => array(
+                '<?php echo 1;',
+                "<?php echo 1;\n?>\n",
+            ),
+            'Trailing comment.' => array(
+                '<?php echo 1;// test',
+                "<?php echo 1;// test\n?>",
+            ),
+            'No code' => array(
+                '<?php ',
+                '<?php ?>',
+            ),
+            'No code, only comment' => array(
+                '<?php /* license */',
+                '<?php /* license */ ?>',
+            ),
+            array(
+                '<?php ?>aa',
+            ),
         );
     }
 
     public function provideCasesWithShortOpenTag()
     {
         return array(
-            array('<? echo \'Foo\';', '<? echo \'Foo\'; ?>'),
-            array('<? echo \'Foo\';', '<? echo \'Foo\';?>'),
+            array(
+                '<? echo \'Foo\';',
+                '<? echo \'Foo\'; ?>',
+            ),
+            array(
+                '<? echo \'Foo\';',
+                '<? echo \'Foo\';?>',
+                ),
             array('<? echo \'Foo\'; ?>
 <p><? echo \'this is a template\'; ?></p>
 <? echo \'Foo\'; ?>',
             ),
+            array('<? /**/', '<? /**/?>'),
             array('<?= "somestring"; ?> <?= "anotherstring"; ?>'),
+            array(
+                '<?= 1;',
+                '<?= 1; ?>',
+            ),
         );
     }
 }

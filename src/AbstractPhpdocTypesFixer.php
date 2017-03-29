@@ -37,6 +37,8 @@ abstract class AbstractPhpdocTypesFixer extends AbstractFixer
      */
     public function __construct()
     {
+        parent::__construct();
+
         $this->tags = Annotation::getTagsWithTypes();
     }
 
@@ -51,7 +53,7 @@ abstract class AbstractPhpdocTypesFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $token) {
             if (!$token->isGivenKind(T_DOC_COMMENT)) {
@@ -72,6 +74,15 @@ abstract class AbstractPhpdocTypesFixer extends AbstractFixer
             $token->setContent($doc->getContent());
         }
     }
+
+    /**
+     * Actually normalize the given type.
+     *
+     * @param string $type
+     *
+     * @return string
+     */
+    abstract protected function normalize($type);
 
     /**
      * Fix the types at the given line.
@@ -110,7 +121,7 @@ abstract class AbstractPhpdocTypesFixer extends AbstractFixer
     }
 
     /**
-     * Prepair the type and normalize it.
+     * Prepare the type and normalize it.
      *
      * @param string $type
      *
@@ -124,13 +135,4 @@ abstract class AbstractPhpdocTypesFixer extends AbstractFixer
 
         return $this->normalize($type);
     }
-
-    /**
-     * Actually normalize the given type.
-     *
-     * @param string $type
-     *
-     * @return string
-     */
-    abstract protected function normalize($type);
 }

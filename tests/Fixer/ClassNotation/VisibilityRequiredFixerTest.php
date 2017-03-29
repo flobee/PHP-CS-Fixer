@@ -15,6 +15,9 @@ namespace PhpCsFixer\Tests\Fixer\ClassNotation;
 use PhpCsFixer\Test\AbstractFixerTestCase;
 
 /**
+ * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
+ * @author SpacePossum
+ *
  * @internal
  */
 final class VisibilityRequiredFixerTest extends AbstractFixerTestCase
@@ -246,9 +249,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testLeaveFunctionsAloneAfterClass()
     {
         $expected = <<<'EOF'
@@ -270,9 +270,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testCurlyOpenSyntax()
     {
         $expected = <<<'EOF'
@@ -293,9 +290,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testDollarOpenCurlyBracesSyntax()
     {
         $expected = <<<'EOF'
@@ -313,9 +307,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testLeaveJavascriptOutsidePhpAlone()
     {
         $expected = <<<'EOF'
@@ -335,9 +326,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testLeaveJavascriptInStringAlone()
     {
         $expected = <<<'EOF'
@@ -355,9 +343,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testLeaveJavascriptInVariableAlone()
     {
         $expected = <<<'EOF'
@@ -382,9 +367,6 @@ EOF;
         $this->doTest($expected);
     }
 
-    /**
-     * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
-     */
     public function testFixCommaSeparatedProperty()
     {
         $expected = <<<'EOF'
@@ -445,5 +427,111 @@ class Foo
 EOF;
 
         $this->doTest($expected, $input);
+    }
+
+    public function testInvalidConfigurationType()
+    {
+        $this->setExpectedExceptionRegExp(
+            'PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException',
+            '/^\[visibility_required\] Invalid configuration: The option "elements" .*\.$/'
+        );
+
+        $this->fixer->configure(array('elements' => array(null)));
+    }
+
+    public function testInvalidConfigurationValue()
+    {
+        $this->setExpectedExceptionRegExp(
+            'PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException',
+            '/^\[visibility_required\] Invalid configuration: The option "elements" .*\.$/'
+        );
+
+        $this->fixer->configure(array('elements' => array('_unknown_')));
+    }
+
+    public function testInvalidConfigurationValueForPHPVersion()
+    {
+        if (PHP_VERSION_ID >= 70100) {
+            $this->markTestSkipped('PHP version to high.');
+        }
+
+        $this->setExpectedExceptionRegExp(
+            'PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException',
+            '/^\[visibility_required\] Invalid configuration: "const" option can only be enabled with PHP 7\.1\+\.$/'
+        );
+
+        $this->fixer->configure(array('elements' => array('const')));
+    }
+
+    /**
+     * @param string $expected expected PHP source after fixing
+     * @param string $input    PHP source to fix
+     *
+     * @group legacy
+     * @requires PHP 7.1
+     * @dataProvider provideClassConstTest
+     * @expectedDeprecation Passing "elements" at the root of the configuration is deprecated and will not be supported in 3.0, use "elements" => array(...) option instead.
+     */
+    public function testLegacyFixClassConst($expected, $input)
+    {
+        $this->fixer->configure(array('const'));
+        $this->doTest($expected, $input);
+    }
+
+    /**
+     * @param string $expected expected PHP source after fixing
+     * @param string $input    PHP source to fix
+     *
+     * @requires PHP 7.1
+     * @dataProvider provideClassConstTest
+     */
+    public function testFixClassConst($expected, $input)
+    {
+        $this->fixer->configure(array('elements' => array('const')));
+        $this->doTest($expected, $input);
+    }
+
+    public function provideClassConstTest()
+    {
+        return array(
+            array(
+                '<?php class A { public const B=1; }',
+                '<?php class A { const B=1; }',
+            ),
+            array(
+                '<?php class A { public const B=1;public const C=1;/**/public const#a
+                D=1;public const E=1;//
+public const F=1; }',
+                '<?php class A { const B=1;const C=1;/**/const#a
+                D=1;const E=1;//
+const F=1; }',
+            ),
+            array(
+                '<?php class A { private const B=1; protected const C=2; public const D=4; public $a; function A(){} }',
+                '<?php class A { private const B=1; protected const C=2; const D=4; public $a; function A(){} }',
+            ),
+            array(
+                '<?php
+                    class foo
+                    {
+                        public const A = 1, B =2, C =3;
+                        // As of PHP 5.6.0
+                        public const TWO = ONE * 2;
+                        public const THREE = ONE + self::TWO;
+                        public const SENTENCE = "The value of THREE is ".self::THREE;
+                    }
+                ',
+                '<?php
+                    class foo
+                    {
+                        const A = 1, B =2, C =3;
+                        // As of PHP 5.6.0
+                        const TWO = ONE * 2;
+                        const THREE = ONE + self::TWO;
+                        const SENTENCE = "The value of THREE is ".self::THREE;
+                    }
+                ',
+            ),
+        );
     }
 }

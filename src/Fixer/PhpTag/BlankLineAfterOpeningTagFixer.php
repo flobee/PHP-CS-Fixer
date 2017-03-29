@@ -13,14 +13,37 @@
 namespace PhpCsFixer\Fixer\PhpTag;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Ceeram <ceeram@cakephp.org>
  */
-final class BlankLineAfterOpeningTagFixer extends AbstractFixer
+final class BlankLineAfterOpeningTagFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Ensure there is no code on the same line as the PHP open tag and it is followed by a blank line.',
+            array(new CodeSample("<?php \$a = 1;\n\$b = 1;"))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run before the NoBlankLinesBeforeNamespaceFixer
+        return 1;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -32,8 +55,10 @@ final class BlankLineAfterOpeningTagFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
+        $lineEnding = $this->whitespacesConfig->getLineEnding();
+
         // ignore files with short open tag and ignore non-monolithic files
         if (!$tokens[0]->isGivenKind(T_OPEN_TAG) || !$tokens->isMonolithicPhp()) {
             return;
@@ -56,28 +81,11 @@ final class BlankLineAfterOpeningTagFixer extends AbstractFixer
         $token = $tokens[0];
 
         if (false === strpos($token->getContent(), "\n")) {
-            $token->setContent(rtrim($token->getContent())."\n");
+            $token->setContent(rtrim($token->getContent()).$lineEnding);
         }
 
         if (!$tokens[1]->isWhitespace() && false === strpos($tokens[1]->getContent(), "\n")) {
-            $tokens->insertAt(1, new Token(array(T_WHITESPACE, "\n")));
+            $tokens->insertAt(1, new Token(array(T_WHITESPACE, $lineEnding)));
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Ensure there is no code on the same line as the PHP open tag and it is followed by a blankline.';
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run before the NoBlankLinesBeforeNamespaceFixer
-        return 1;
     }
 }

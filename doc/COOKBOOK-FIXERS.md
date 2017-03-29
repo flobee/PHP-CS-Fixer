@@ -21,8 +21,8 @@ contribute, and to detect bugs ([Linus'
 Law](http://en.wikipedia.org/wiki/Linus%27s_Law)).
 
 If possible, try to get acquainted with the public interface for the
-[Symfony/CS/Tokenizer/Tokens.php](Symfony/CS/Tokenizer/Tokens.php)
-and [Symfony/CS/Tokenizer/Token.php](Symfony/CS/Tokenizer/Token.php)
+[Tokens class](Symfony/CS/Tokenizer/Tokens.php)
+and [Token class](Symfony/CS/Tokenizer/Token.php)
 classes.
 
 ## Assumptions
@@ -30,9 +30,8 @@ classes.
 * You are familiar with Test Driven Development.
 * Forked FriendsOfPHP/PHP-CS-Fixer into your own Github Account.
 * Cloned your forked repository locally.
-* Downloaded PHP CS Fixer and have executed `php composer.phar
-install`.
-* You have read [`CONTRIBUTING.md`](CONTRIBUTING.md)
+* Installed the dependencies of PHP CS Fixer using [Composer](https://getcomposer.org/).
+* You have read [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Step by step
 
@@ -59,7 +58,7 @@ Put this content inside:
  * with this source code in the file LICENSE.
  */
 
-namespace PhpCsFixer\Fixer\Contrib;
+namespace PhpCsFixer\Fixer\Comment;
 
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\Tokenizer\Tokens;
@@ -69,11 +68,26 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class RemoveCommentsFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
+    {
+        // Add the fixing logic of the fixer here.
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getDescription()
+    {
+        // Return a short description of the Fixer, it will be used in the README.rst.
+    }
 }
 ```
 
 Note how the class and file name match. Also keep in mind that all
-fixers must implement `FixerInterface`. In this case, the fixer is
+fixers must implement `Fixer\FixerInterface`. In this case, the fixer is
 inheriting from `AbstractFixer`, which fulfills the interface with some
 default behavior.
 
@@ -93,16 +107,16 @@ content inside:
  * with this source code in the file LICENSE.
  */
 
-namespace PhpCsFixer\Tests\Fixer\Contrib;
+namespace PhpCsFixer\Tests\Fixer\Comment;
 
-use PhpCsFixer\Tests\Fixer\AbstractFixerTestBase;
+use PhpCsFixer\Test\AbstractFixerTestCase;
 
 /**
  * @author Your name <your@email.com>
  *
  * @internal
  */
-final class RemoveCommentsFixerTest extends AbstractFixerTestBase
+final class RemoveCommentsFixerTest extends AbstractFixerTestCase
 {
     /**
      * @dataProvider provideFixCases
@@ -123,7 +137,7 @@ The files are created, one thing is still missing though: we need to
 update the README.md. Fortunately, PHP CS Fixer can help you here.
 Execute the following command in your command shell:
 
-`# php php-cs-fixer readme > README.rst`
+`$ php php-cs-fixer readme > README.rst`
 
 ### Step 2 - Using tests to define fixers behavior
 
@@ -178,7 +192,7 @@ like:
  * with this source code in the file LICENSE.
  */
 
-namespace PhpCsFixer\Tests\Fixer\Contrib;
+namespace PhpCsFixer\Tests\Fixer\Comment;
 
 use PhpCsFixer\Tests\Fixer\AbstractFixerTestBase;
 
@@ -254,7 +268,7 @@ class RemoveCommentsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         // no action
     }
@@ -262,7 +276,8 @@ class RemoveCommentsFixer extends AbstractFixer
 }
 ```
 
-Run `vendor/bin/phpunit`. You are going to see that the tests fails.
+Run `$ phpunit Symfony/CS/Tests/Fixer/Contrib/RemoveCommentsFixerTest.php`.
+You are going to see that the tests fails.
 
 ### Break
 Now we have pretty much a cradle to work with. A file with a failing
@@ -303,7 +318,7 @@ final class RemoveCommentsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach($tokens as $index => $token){
             if (!$token->isGivenKind(T_COMMENT)) {
@@ -326,7 +341,7 @@ final class RemoveCommentsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach($tokens as $index => $token){
             if (!$token->isGivenKind(T_COMMENT)) {
@@ -359,7 +374,7 @@ So the fixer in the end looks like this:
  *
  */
 
-namespace PhpCsFixer\Fixer\Contrib;
+namespace PhpCsFixer\Fixer\Comment;
 
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\Tokenizer\Tokens;
@@ -371,7 +386,7 @@ final class RemoveCommentsFixer extends AbstractFixer {
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens) {
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens) {
         foreach($tokens as $index => $token){
             if (!$token->isGivenKind(T_COMMENT)) {
                 continue;
@@ -466,16 +481,6 @@ part of the application as soon as possible.
 
 No. Short arrays were introduced in PHP 5.4 and PHP CS Fixer still
 supports PHP 5.3.6.
-
-#### Why are you steering me to create my fixer at CONTRIB_LEVEL ?
-
-CONTRIB_LEVEL is the most lax level - and it is far more likely to have
-your fixer accepted at CONTRIB_LEVEL and later changed to SYMFOMY_LEVEL
-or PSR2_LEVEL; than the other way around.
-
-If you make your contribution directly at PSR2_LEVEL, eventually the
-relevance debate will take place and your fixer might be pushed to
-CONTRIB_LEVEL.
 
 #### Why am I asked to use `getPrevMeaningfulToken()` instead of `getPrevNonWhitespace()`?
 

@@ -13,13 +13,36 @@
 namespace PhpCsFixer\Fixer\Whitespace;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class NoWhitespaceInBlankLineFixer extends AbstractFixer
+final class NoWhitespaceInBlankLineFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Remove trailing whitespace at the end of blank lines.',
+            array(new CodeSample("<?php\n   \n\$a = 1;"))
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // should be run after the NoUselessReturnFixer, NoEmptyPhpdocFixer and NoUselessElseFixer.
+        return -19;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -31,55 +54,44 @@ final class NoWhitespaceInBlankLineFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
-        foreach ($tokens as $index => $token) {
-            if (!$token->isWhitespace()) {
-                continue;
-            }
-
-            $content = $token->getContent();
-            $lines = preg_split("/([\r\n])/", $content);
-
-            if (
-                // fix T_WHITESPACES with at least 3 lines (eg `\n   \n`)
-                count($lines) > 2
-                // and T_WHITESPACES with at least 2 lines at the end of file
-                || (count($lines) > 1 && !isset($tokens[$index + 1]))
-            ) {
-                $lMax = count($lines) - 1;
-                if (!isset($tokens[$index + 1])) {
-                    ++$lMax;
-                }
-
-                $lStart = 1;
-                if (isset($tokens[$index - 1]) && $tokens[$index - 1]->isGivenKind(T_OPEN_TAG) && "\n" === substr($tokens[$index - 1]->getContent(), -1)) {
-                    $lStart = 0;
-                }
-
-                for ($l = $lStart; $l < $lMax; ++$l) {
-                    $lines[$l] = preg_replace('/^\h+$/', '', $lines[$l]);
-                }
-
-                $token->setContent(implode("\n", $lines));
+        // skip first as it cannot be a white space token
+        for ($i = 1, $count = count($tokens); $i < $count; ++$i) {
+            if ($tokens[$i]->isWhitespace()) {
+                $this->fixWhitespaceToken($tokens, $i);
             }
         }
     }
 
     /**
-     * {@inheritdoc}
+     * @param Tokens $tokens
+     * @param int    $index
      */
-    public function getDescription()
+    private function fixWhitespaceToken(Tokens $tokens, $index)
     {
-        return 'Remove trailing whitespace at the end of blank lines.';
-    }
+        $content = $tokens[$index]->getContent();
+        $lines = preg_split("/(\r\n|\n)/", $content);
+        $lineCount = count($lines);
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // should be run after the NoUselessReturnFixer, NoEmptyPhpdocFixer and NoUselessElseFixer.
-        return -19;
+        if (
+            // fix T_WHITESPACES with at least 3 lines (eg `\n   \n`)
+            $lineCount > 2
+            // and T_WHITESPACES with at least 2 lines at the end of file or after open tag with linebreak
+            || ($lineCount > 0 && (!isset($tokens[$index + 1]) || $tokens[$index - 1]->isGivenKind(T_OPEN_TAG)))
+        ) {
+            $lMax = isset($tokens[$index + 1]) ? $lineCount - 1 : $lineCount;
+
+            $lStart = 1;
+            if ($tokens[$index - 1]->isGivenKind(T_OPEN_TAG) && "\n" === substr($tokens[$index - 1]->getContent(), -1)) {
+                $lStart = 0;
+            }
+
+            for ($l = $lStart; $l < $lMax; ++$l) {
+                $lines[$l] = preg_replace('/^\h+$/', '', $lines[$l]);
+            }
+
+            $tokens[$index]->setContent(implode($this->whitespacesConfig->getLineEnding(), $lines));
+        }
     }
 }

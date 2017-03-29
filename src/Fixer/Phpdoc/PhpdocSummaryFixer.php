@@ -15,13 +15,32 @@ namespace PhpCsFixer\Fixer\Phpdoc;
 use PhpCsFixer\AbstractFixer;
 use PhpCsFixer\DocBlock\DocBlock;
 use PhpCsFixer\DocBlock\Line;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Graham Campbell <graham@alt-three.com>
  */
-final class PhpdocSummaryFixer extends AbstractFixer
+final class PhpdocSummaryFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Phpdocs summary should end in either a full stop, exclamation mark, or question mark.',
+            array(new CodeSample('<?php
+/**
+ * Foo function is great
+ */
+function foo () {}
+'))
+        );
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -33,7 +52,7 @@ final class PhpdocSummaryFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         foreach ($tokens as $token) {
             if (!$token->isGivenKind(T_DOC_COMMENT)) {
@@ -48,19 +67,11 @@ final class PhpdocSummaryFixer extends AbstractFixer
                 $content = rtrim($line->getContent());
 
                 if (!$this->isCorrectlyFormatted($content)) {
-                    $line->setContent($content.".\n");
+                    $line->setContent($content.'.'.$this->whitespacesConfig->getLineEnding());
                     $token->setContent($doc->getContent());
                 }
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Phpdocs summary should end in either a full stop, exclamation mark, or question mark.';
     }
 
     /**
@@ -84,7 +95,7 @@ final class PhpdocSummaryFixer extends AbstractFixer
 
             // no short description was found
             if ($line->containsATag()) {
-                return;
+                return null;
             }
 
             // we've reached content, but need to check the next lines too

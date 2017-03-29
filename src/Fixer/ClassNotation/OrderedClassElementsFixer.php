@@ -13,14 +13,20 @@
 namespace PhpCsFixer\Fixer\ClassNotation;
 
 use PhpCsFixer\AbstractFixer;
-use PhpCsFixer\ConfigurationException\InvalidFixerConfigurationException;
+use PhpCsFixer\Fixer\ConfigurationDefinitionFixerInterface;
+use PhpCsFixer\FixerConfiguration\FixerConfigurationResolverRootless;
+use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
+use PhpCsFixer\FixerConfiguration\FixerOptionValidatorGenerator;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Gregor Harlan <gharlan@web.de>
  */
-final class OrderedClassElementsFixer extends AbstractFixer
+final class OrderedClassElementsFixer extends AbstractFixer implements ConfigurationDefinitionFixerInterface
 {
     /**
      * @var array Array containing all class element base types (keys) and their parent types (values)
@@ -63,26 +69,6 @@ final class OrderedClassElementsFixer extends AbstractFixer
     );
 
     /**
-     * @var string[] Default order/configuration
-     */
-    private static $defaultOrder = array(
-        'use_trait',
-        'constant_public',
-        'constant_protected',
-        'constant_private',
-        'property_public',
-        'property_protected',
-        'property_private',
-        'construct',
-        'destruct',
-        'magic',
-        'phpunit',
-        'method_public',
-        'method_protected',
-        'method_private',
-    );
-
-    /**
      * @var array Resolved configuration array (type => position)
      */
     private $typePosition;
@@ -92,17 +78,11 @@ final class OrderedClassElementsFixer extends AbstractFixer
      */
     public function configure(array $configuration = null)
     {
-        if (null === $configuration) {
-            $configuration = self::$defaultOrder;
-        }
+        parent::configure($configuration);
 
         $this->typePosition = array();
         $pos = 0;
-        foreach ($configuration as $type) {
-            if (!array_key_exists($type, self::$typeHierarchy) && !array_key_exists($type, self::$specialTypes)) {
-                throw new InvalidFixerConfigurationException($this->getName(), sprintf('Unknown class element type "%s".', $type));
-            }
-
+        foreach ($this->configuration['order'] as $type) {
             $this->typePosition[$type] = $pos++;
         }
 
@@ -126,7 +106,7 @@ final class OrderedClassElementsFixer extends AbstractFixer
             $this->typePosition[$type] = null;
         }
 
-        $lastPosition = count($configuration);
+        $lastPosition = count($this->configuration['order']);
         foreach ($this->typePosition as &$pos) {
             if (null === $pos) {
                 $pos = $lastPosition;
@@ -147,7 +127,62 @@ final class OrderedClassElementsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Orders the elements of classes/interfaces/traits.',
+            array(
+                new CodeSample(
+                    '<?php
+final class Example
+{
+    use BarTrait;
+    use BazTrait;
+    const C1 = 1;
+    const C2 = 2;
+    protected static $protStatProp;
+    public static $pubStatProp1;
+    public $pubProp1;
+    protected $protProp;
+    var $pubProp2;
+    private static $privStatProp;
+    private $privProp;
+    public static $pubStatProp2;
+    public $pubProp3;
+    protected function __construct() {}
+    private static function privStatFunc() {}
+    public function pubFunc1() {}
+    public function __toString() {}
+    protected function protFunc() {}
+    function pubFunc2() {}
+    public static function pubStatFunc1() {}
+    public function pubFunc3() {}
+    static function pubStatFunc2() {}
+    private function privFunc() {}
+    public static function pubStatFunc3() {}
+    protected static function protStatFunc() {}
+    public function __destruct() {}
+}
+'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getPriority()
+    {
+        // must run before MethodSeparationFixer, NoBlankLinesAfterClassOpeningFixer and SpaceAfterSemicolonFixer.
+        // must run after ProtectedToPrivateFixer.
+        return 65;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         for ($i = 1, $count = $tokens->count(); $i < $count; ++$i) {
             if (!$tokens[$i]->isClassy()) {
@@ -175,18 +210,36 @@ final class OrderedClassElementsFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    protected function createConfigurationDefinition()
     {
-        return 'Orders the elements of classes/interfaces/traits.';
-    }
+        $generator = new FixerOptionValidatorGenerator();
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getPriority()
-    {
-        // must run before MethodSeparationFixer, NoBlankLinesAfterClassOpeningFixer and SpaceAfterSemicolonFixer
-        return 65;
+        $order = new FixerOptionBuilder('order', 'List of strings defining order of elements.');
+        $order = $order
+            ->setAllowedTypes(array('array'))
+            ->setAllowedValues(array(
+                $generator->allowedValueIsSubsetOf(array_keys(array_merge(self::$typeHierarchy, self::$specialTypes))),
+            ))
+            ->setDefault(array(
+                'use_trait',
+                'constant_public',
+                'constant_protected',
+                'constant_private',
+                'property_public',
+                'property_protected',
+                'property_private',
+                'construct',
+                'destruct',
+                'magic',
+                'phpunit',
+                'method_public',
+                'method_protected',
+                'method_private',
+            ))
+            ->getOption()
+        ;
+
+        return new FixerConfigurationResolverRootless('order', array($order));
     }
 
     /**
@@ -197,7 +250,7 @@ final class OrderedClassElementsFixer extends AbstractFixer
      */
     private function getElements(Tokens $tokens, $startIndex)
     {
-        static $elementTokenKinds = array(CT_USE_TRAIT, T_CONST, T_VARIABLE, T_FUNCTION);
+        static $elementTokenKinds = array(CT::T_USE_TRAIT, T_CONST, T_VARIABLE, T_FUNCTION);
 
         ++$startIndex;
         $elements = array();
@@ -258,7 +311,7 @@ final class OrderedClassElementsFixer extends AbstractFixer
     {
         $token = $tokens[$index];
 
-        if ($token->isGivenKind(CT_USE_TRAIT)) {
+        if ($token->isGivenKind(CT::T_USE_TRAIT)) {
             return 'use_trait';
         }
 
@@ -357,6 +410,7 @@ final class OrderedClassElementsFixer extends AbstractFixer
 
             $element['position'] = $this->typePosition[$type];
         }
+        unset($element);
 
         usort($elements, function (array $a, array $b) {
             if ($a['position'] === $b['position']) {

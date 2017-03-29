@@ -70,7 +70,7 @@ final class FileCacheManager implements CacheManagerInterface
         $this->handler = $handler;
         $this->signature = $signature;
         $this->isDryRun = $isDryRun;
-        $this->cacheDirectory = $cacheDirectory ?: new Directory(dirname(realpath($handler->getFile())));
+        $this->cacheDirectory = $cacheDirectory ?: new Directory('');
 
         $this->readCache();
     }
@@ -78,6 +78,28 @@ final class FileCacheManager implements CacheManagerInterface
     public function __destruct()
     {
         $this->writeCache();
+    }
+
+    public function needFixing($file, $fileContent)
+    {
+        $file = $this->cacheDirectory->getRelativePathTo($file);
+
+        return !$this->cache->has($file) || $this->cache->get($file) !== $this->calcHash($fileContent);
+    }
+
+    public function setFile($file, $fileContent)
+    {
+        $file = $this->cacheDirectory->getRelativePathTo($file);
+
+        $hash = $this->calcHash($fileContent);
+
+        if ($this->isDryRun && $this->cache->has($file) && $this->cache->get($file) !== $hash) {
+            $this->cache->clear($file);
+
+            return;
+        }
+
+        $this->cache->set($file, $hash);
     }
 
     private function readCache()
@@ -94,32 +116,6 @@ final class FileCacheManager implements CacheManagerInterface
     private function writeCache()
     {
         $this->handler->write($this->cache);
-    }
-
-    public function needFixing($file, $fileContent)
-    {
-        $file = $this->cacheDirectory->getRelativePathTo($file);
-
-        if (!$this->cache->has($file) || $this->cache->get($file) !== $this->calcHash($fileContent)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    public function setFile($file, $fileContent)
-    {
-        $file = $this->cacheDirectory->getRelativePathTo($file);
-
-        $hash = $this->calcHash($fileContent);
-
-        if ($this->isDryRun && $this->cache->has($file) && $this->cache->get($file) !== $hash) {
-            $this->cache->clear($file);
-
-            return;
-        }
-
-        $this->cache->set($file, $hash);
     }
 
     private function calcHash($content)

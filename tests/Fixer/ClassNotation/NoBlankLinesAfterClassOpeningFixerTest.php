@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Fixer\ClassNotation;
 
 use PhpCsFixer\Test\AbstractFixerTestCase;
+use PhpCsFixer\WhitespacesFixerConfig;
 
 /**
  * @author Ceeram <ceeram@cakephp.org>
@@ -22,6 +23,9 @@ use PhpCsFixer\Test\AbstractFixerTestCase;
 final class NoBlankLinesAfterClassOpeningFixerTest extends AbstractFixerTestCase
 {
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @dataProvider provideCases
      */
     public function testFix($expected, $input = null)
@@ -30,6 +34,9 @@ final class NoBlankLinesAfterClassOpeningFixerTest extends AbstractFixerTestCase
     }
 
     /**
+     * @param string      $expected
+     * @param null|string $input
+     *
      * @requires PHP 5.4
      * @dataProvider provideTraits
      */
@@ -66,7 +73,7 @@ class Good
 class Good
 {
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod()
     {
@@ -78,7 +85,7 @@ class Good
 {
 
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod()
     {
@@ -92,7 +99,7 @@ class Good
 interface Good
 {
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod();
 }',
@@ -101,7 +108,7 @@ interface Good
 {
 
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod();
 }',
@@ -134,7 +141,7 @@ class Good
 trait Good
 {
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod() {}
 }',
@@ -143,12 +150,39 @@ trait Good
 {
 
     /**
-     * Also no blankline before DocBlock
+     * Also no blank line before DocBlock
      */
     public function firstMethod() {}
 }',
         );
 
         return $cases;
+    }
+
+    /**
+     * @param string      $expected
+     * @param null|string $input
+     *
+     * @dataProvider provideMessyWhitespacesCases
+     */
+    public function testMessyWhitespaces($expected, $input = null)
+    {
+        $this->fixer->setWhitespacesConfig(new WhitespacesFixerConfig("\t", "\r\n"));
+
+        $this->doTest($expected, $input);
+    }
+
+    public function provideMessyWhitespacesCases()
+    {
+        return array(
+            array(
+                "<?php\nclass Foo\n{\r\n    public function bar() {}\n}",
+                "<?php\nclass Foo\n{\n\n    public function bar() {}\n}",
+            ),
+            array(
+                "<?php\nclass Foo\n{\r\n    public function bar() {}\n}",
+                "<?php\nclass Foo\n{\r\n\r\n    public function bar() {}\n}",
+            ),
+        );
     }
 }

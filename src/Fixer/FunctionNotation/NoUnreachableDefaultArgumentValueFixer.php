@@ -13,6 +13,9 @@
 namespace PhpCsFixer\Fixer\FunctionNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
+use PhpCsFixer\Tokenizer\CT;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
@@ -22,6 +25,28 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class NoUnreachableDefaultArgumentValueFixer extends AbstractFixer
 {
+    /**
+     * {@inheritdoc}
+     */
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'In function arguments there must not be arguments with default values before non-default ones.',
+            array(
+                new CodeSample(
+                    '<?php
+function example($foo = "two words", $bar) {}
+'
+                ),
+            ),
+            null,
+            'Modifies the signature of functions; therefore risky when using systems (such as some Symfony components) that rely on those (for example through reflection).'
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function isCandidate(Tokens $tokens)
     {
         return $tokens->isTokenKindFound(T_FUNCTION);
@@ -30,15 +55,15 @@ final class NoUnreachableDefaultArgumentValueFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function getDescription()
+    public function isRisky()
     {
-        return 'In method arguments there must not be arguments with default values before non-default ones.';
+        return true;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         for ($i = 0, $l = $tokens->count(); $i < $l; ++$i) {
             if (!$tokens[$i]->isGivenKind(T_FUNCTION)) {
@@ -151,8 +176,8 @@ final class NoUnreachableDefaultArgumentValueFixer extends AbstractFixer
 
         $variableIndex = $tokens->getPrevMeaningfulToken($index);
 
-        $searchTokens = array(',', '(', array(T_STRING), array(CT_ARRAY_TYPEHINT));
-        $typehintKinds = array(T_STRING, CT_ARRAY_TYPEHINT);
+        $searchTokens = array(',', '(', array(T_STRING), array(CT::T_ARRAY_TYPEHINT));
+        $typehintKinds = array(T_STRING, CT::T_ARRAY_TYPEHINT);
 
         if (defined('T_CALLABLE')) {
             $searchTokens[] = array(T_CALLABLE);

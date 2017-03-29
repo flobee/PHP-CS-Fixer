@@ -13,13 +13,17 @@
 namespace PhpCsFixer\Fixer\NamespaceNotation;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\Fixer\WhitespacesAwareFixerInterface;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
 /**
  * @author Bram Gotink <bram@gotink.me>
+ * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
  */
-final class NoLeadingNamespaceWhitespaceFixer extends AbstractFixer
+final class NoLeadingNamespaceWhitespaceFixer extends AbstractFixer implements WhitespacesAwareFixerInterface
 {
     /**
      * {@inheritdoc}
@@ -32,7 +36,24 @@ final class NoLeadingNamespaceWhitespaceFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'The namespace declaration line shouldn\'t contain leading whitespace.',
+            array(
+                new CodeSample(
+                    '<?php
+ namespace Test8a;
+    namespace Test8b;'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         for ($index = count($tokens) - 1; 0 <= $index; --$index) {
             $token = $tokens[$index];
@@ -45,7 +66,7 @@ final class NoLeadingNamespaceWhitespaceFixer extends AbstractFixer
 
             if (!$beforeNamespace->isWhitespace()) {
                 if (!self::endsWithWhitespace($beforeNamespace->getContent())) {
-                    $tokens->insertAt($index, new Token(array(T_WHITESPACE, "\n")));
+                    $tokens->insertAt($index, new Token(array(T_WHITESPACE, $this->whitespacesConfig->getLineEnding())));
                 }
 
                 continue;
@@ -65,14 +86,6 @@ final class NoLeadingNamespaceWhitespaceFixer extends AbstractFixer
                 $beforeNamespace->setContent(substr($beforeNamespace->getContent(), 0, $lastNewline + 1));
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'The namespace declaration line shouldn\'t contain leading whitespace.';
     }
 
     private static function endsWithWhitespace($str)

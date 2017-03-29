@@ -13,6 +13,8 @@
 namespace PhpCsFixer\Fixer\Phpdoc;
 
 use PhpCsFixer\AbstractFixer;
+use PhpCsFixer\FixerDefinition\CodeSample;
+use PhpCsFixer\FixerDefinition\FixerDefinition;
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
 
@@ -22,14 +24,6 @@ use PhpCsFixer\Tokenizer\Tokens;
  */
 final class PhpdocToCommentFixer extends AbstractFixer
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function getDescription()
-    {
-        return 'Docblocks should only be used on structural elements.';
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -54,7 +48,28 @@ final class PhpdocToCommentFixer extends AbstractFixer
     /**
      * {@inheritdoc}
      */
-    public function fix(\SplFileInfo $file, Tokens $tokens)
+    public function getDefinition()
+    {
+        return new FixerDefinition(
+            'Docblocks should only be used on structural elements.',
+            array(
+                new CodeSample(
+                    '<?php
+$first = true;// needed because by default first docblock is never fixed.
+
+/** This should not be a docblock */
+foreach($connections as $key => $sqlite) {
+    $sqlite->open($path);
+}'
+                ),
+            )
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function applyFix(\SplFileInfo $file, Tokens $tokens)
     {
         static $controlStructures = array(
             T_FOREACH,
@@ -85,7 +100,7 @@ final class PhpdocToCommentFixer extends AbstractFixer
                 continue;
             }
 
-            if ($nextToken->isGivenKind(T_VARIABLE) && $this->isValidVariable($tokens, $token, $nextIndex)) {
+            if ($nextToken->isGivenKind(T_VARIABLE) && $this->isValidVariable($tokens, $nextIndex)) {
                 continue;
             }
 
@@ -118,6 +133,7 @@ final class PhpdocToCommentFixer extends AbstractFixer
             T_PRIVATE,
             T_PROTECTED,
             T_PUBLIC,
+            T_VAR,
             T_FUNCTION,
             T_ABSTRACT,
             T_CONST,
@@ -194,19 +210,14 @@ final class PhpdocToCommentFixer extends AbstractFixer
      * Checks variable assignments for correct docblock usage.
      *
      * @param Tokens $tokens
-     * @param Token  $docsToken     docs Token
      * @param int    $variableIndex index of variable Token
      *
      * @return bool
      */
-    private function isValidVariable(Tokens $tokens, Token $docsToken, $variableIndex)
+    private function isValidVariable(Tokens $tokens, $variableIndex)
     {
         $nextIndex = $tokens->getNextMeaningfulToken($variableIndex);
 
-        if (!$tokens[$nextIndex]->equals('=')) {
-            return false;
-        }
-
-        return false !== strpos($docsToken->getContent(), $tokens[$variableIndex]->getContent());
+        return $tokens[$nextIndex]->equals('=');
     }
 }

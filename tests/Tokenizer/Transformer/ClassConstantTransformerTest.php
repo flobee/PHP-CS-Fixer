@@ -13,6 +13,7 @@
 namespace PhpCsFixer\Tests\Tokenizer\Transformer;
 
 use PhpCsFixer\Test\AbstractTransformerTestCase;
+use PhpCsFixer\Tokenizer\CT;
 
 /**
  * @author Dariusz Rumiński <dariusz.ruminski@gmail.com>
@@ -22,12 +23,20 @@ use PhpCsFixer\Test\AbstractTransformerTestCase;
 final class ClassConstantTransformerTest extends AbstractTransformerTestCase
 {
     /**
+     * @param string $source
+     *
      * @dataProvider provideProcessCases
      * @requires PHP 5.5
      */
     public function testProcess($source, array $expectedTokens = array())
     {
-        $this->doTest($source, $expectedTokens);
+        $this->doTest(
+            $source,
+            $expectedTokens,
+            array(
+                CT::T_CLASS_CONSTANT,
+            )
+        );
     }
 
     public function provideProcessCases()
@@ -36,22 +45,20 @@ final class ClassConstantTransformerTest extends AbstractTransformerTestCase
             array(
                 '<?php echo X::class;',
                 array(
-                    5 => 'CT_CLASS_CONSTANT',
+                    5 => CT::T_CLASS_CONSTANT,
                 ),
             ),
             array(
                 '<?php echo X::cLaSS;',
                 array(
-                    5 => 'CT_CLASS_CONSTANT',
+                    5 => CT::T_CLASS_CONSTANT,
                 ),
             ),
             array(
                 '<?php echo X::bar;',
-                array(),
             ),
             array(
                 '<?php class X{}',
-                array(),
             ),
         );
     }

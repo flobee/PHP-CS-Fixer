@@ -39,7 +39,7 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
 
     public function testConstructorSetsValues()
     {
-        $signature = $this->getSignatureMock();
+        $signature = $this->getSignatureDouble();
 
         $cache = new Cache($signature);
 
@@ -48,7 +48,7 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
 
     public function testDefaults()
     {
-        $signature = $this->getSignatureMock();
+        $signature = $this->getSignatureDouble();
 
         $cache = new Cache($signature);
 
@@ -62,7 +62,7 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
     {
         $this->setExpectedException('InvalidArgumentException');
 
-        $signature = $this->getSignatureMock();
+        $signature = $this->getSignatureDouble();
 
         $cache = new Cache($signature);
 
@@ -73,7 +73,7 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
 
     public function testCanSetAndGetValue()
     {
-        $signature = $this->getSignatureMock();
+        $signature = $this->getSignatureDouble();
 
         $cache = new Cache($signature);
 
@@ -88,7 +88,7 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
 
     public function testCanClearValue()
     {
-        $signature = $this->getSignatureMock();
+        $signature = $this->getSignatureDouble();
 
         $cache = new Cache($signature);
 
@@ -113,9 +113,9 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider providerMissingData
      *
-     * @param mixed $data
+     * @param array $data
      */
-    public function testFromJsonThrowsInvalidArgumentExceptionIfJsonIsMissingKey($data)
+    public function testFromJsonThrowsInvalidArgumentExceptionIfJsonIsMissingKey(array $data)
     {
         $this->setExpectedException('InvalidArgumentException');
 
@@ -132,7 +132,6 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
         $data = array(
             'php' => '5.5.5',
             'version' => '2.0',
-            'linting' => false,
             'rules' => array(
                 'foo' => true,
                 'bar' => false,
@@ -154,7 +153,6 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
         $signature = new Signature(
             PHP_VERSION,
             '2.0',
-            true,
             array(
                 'foo',
                 'bar',
@@ -177,10 +175,10 @@ final class CacheTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @return \PHPUnit_Framework_MockObject_MockObject|SignatureInterface
+     * @return SignatureInterface
      */
-    private function getSignatureMock()
+    private function getSignatureDouble()
     {
-        return $this->getMockBuilder('PhpCsFixer\Cache\SignatureInterface')->getMock();
+        return $this->prophesize('PhpCsFixer\Cache\SignatureInterface')->reveal();
     }
 }
